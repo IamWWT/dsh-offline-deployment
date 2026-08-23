@@ -1,0 +1,16 @@
+# profile patch：webserver 监听容器内 0.0.0.0
+#
+# 背景：dsh web 官方拒绝 CLI `--host 0.0.0.0`（防远程代码执行暴露），
+# 但 webserver 服务的 config 层允许 host: 0.0.0.0。容器是隔离边界：
+# dsh 监听容器内 0.0.0.0:3080，对外暴露范围由 docker 端口映射控制。
+#
+# 应用：写入 data/profiles/web/cordis.patch.yml（随部署分发），或由
+# scripts/apply-runtime-patches.sh 自动写入。
+---
+
+# 用户 patch 层：webserver 监听容器内 0.0.0.0（官方拒绝 CLI --host，config 层允许）
+- id: webserver
+  config:
+    host: 0.0.0.0
+    port: 3080
+

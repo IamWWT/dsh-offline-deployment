@@ -108,4 +108,4 @@ dsh plugin --profile web add github:owner/repo#path:/packages/my-plugin
 - `lib/` 产物随版本提交，用户无需 Node 构建环境
 
 > 本项目的故障排查助手以"受保护内置插件"方式部署（不进 dependencies，
-> 放共享 fallback 目录 → `dsh plugin remove` 无法卸载）。详见 docs/05。
+> 放共享 fallback 目录 → `dsh plugin remove` 无法卸载）。详见 [05-生产级部署到x86-arm服务器.md](05-生产级部署到x86-arm服务器.md)。
