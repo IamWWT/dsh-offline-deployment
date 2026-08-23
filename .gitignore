@@ -14,7 +14,7 @@ data/profiles/node_modules/
 
 # 构建/源码依赖
 build/
-deepseek-harness/
+/deepseek-harness/
 node_modules/
 .pnpm-store-workspace/
 

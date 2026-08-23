@@ -1,0 +1,64 @@
+# deepseek-harness 运行时修复（不打源码补丁，改运行时产物/配置）
+
+以下修复**不修改上游源码**，通过运行时产物与配置层实现，
+源码更新（git pull）后重新构建 runtime 时需要**重新应用**（见 docs/04）。
+
+## 1. 前端入口 polyfill（crypto.randomUUID）
+
+**文件**：`runtime/apps/web/dist/index.html`（构建后注入）
+
+**问题**：`crypto.randomUUID` 仅 secure context（HTTPS/localhost）可用；
+LAN 通过 `http://<IP>` 访问时浏览器不提供 → Agent 预设/插件配置/工作区抛错。
+
+**修复**：`<head>` 注入脚本，用 `crypto.getRandomValues` 实现 UUID v4：
+
+```html
+<script>
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID !== "function") {
+    crypto.randomUUID = function () { /* UUID v4 via crypto.getRandomValues */ };
+  }
+</script>
+```
+
+**应用**：构建 runtime 后执行 `scripts/apply-runtime-patches.sh`（或手动注入）。
+
+## 2. 前端 isLoopback 判定（settings/模型配置 LAN 可用）
+
+**文件**：`runtime/packages/client/connection/lib/client.js`（构建后修改）
+
+**问题**：前端按页面 hostname 判断 loopback；LAN IP 非 loopback →
+settings 走 memory 模式 → "settings are unavailable in this browser"。
+
+**修复**：isLoopback 判定增加可信地址匹配：
+
+```js
+isLoopback: pageLocation === void 0 || isLoopbackHostname(pageLocation.hostname)
+  || (typeof globalThis.__DSH_TRUSTED_HOSTS__ !== "undefined"
+      && globalThis.__DSH_TRUSTED_HOSTS__.includes(pageLocation.hostname)),
+```
+
+同时在 `index.html` 注入：`window.__DSH_TRUSTED_HOSTS__ = ["<LAN-IP>"]`。
+
+## 3. web-app bundle patch（LAN 信任声明）
+
+**文件**：`runtime/packages/bundle/web-app/cordis.patch.yml`
+
+**修复**：connection 的 trustedHosts 静态声明 LAN IP（容器内 dsh 无法自动发现宿主 IP）：
+
+```yaml
+- id: connection
+  config:
+    trustedHosts: ['<LAN-IP>', ...ctx.webRuntime.trustedHosts]
+```
+
+## 4. profile patch（webserver 监听 0.0.0.0）
+
+**文件**：`data/profiles/web/cordis.patch.yml`（见 patches/profile/01-webserver-host.patch.yml）
+
+**修复**：容器内 dsh 监听 0.0.0.0:3080（config 层允许，CLI 拒绝）；对外暴露由 docker 端口映射控制。
+
+## 5. 重新应用
+
+源码更新后：`bash build-runtime.sh` → 运行 `scripts/apply-runtime-patches.sh` → `docker compose up -d`。
+
+> 所有 LAN IP 是部署相关的，脚本用 `DSH_TRUSTED_HOSTS` 环境变量读取（见 scripts/apply-runtime-patches.sh）。

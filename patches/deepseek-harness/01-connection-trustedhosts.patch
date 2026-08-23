@@ -1,0 +1,15 @@
+diff --git a/packages/client/connection/src/index.ts b/packages/client/connection/src/index.ts
+index a1764a3d58..3dc34a6927 100644
+--- a/packages/client/connection/src/index.ts
++++ b/packages/client/connection/src/index.ts
+@@ -144,7 +144,9 @@ export function apply(ctx: Context, config?: ConnectionConfig): void {
+         : undefined
+       if (method !== undefined
+         && PRIVILEGED_METHODS.has(method)
+-        && !isTrustedApiRequest(request, [])) {
++        // [dsh-offline 定制] 默认仅 loopback；显式声明到 trustedHosts 的局域网地址
++        // （DNS-rebinding fence 的一部分）也允许做配置管理。未声明的主机仍被拒。
++        && !isTrustedApiRequest(request, trustedHosts)) {
+         return new Response('forbidden', { status: 403 })
+       }
+       if (request.method === 'GET' && (pathname === MUX_EVENTS_PATH || pathname === HOST_EVENTS_PATH)) {
