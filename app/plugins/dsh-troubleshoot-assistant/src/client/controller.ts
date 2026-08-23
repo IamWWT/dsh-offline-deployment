@@ -163,6 +163,10 @@ export interface TroubleshootCardState extends CardShell {
   }
   /** 最近一次导入的状态（pending 时"保存"生效、"放弃"取消）。 */
   importInfo: ImportInfo
+  /** 有未保存暂存编辑（或标记删除）的条目 id；供单条"保存此数据源"按钮启用/禁用。 */
+  dirtyIds: string[]
+  /** 存在非法字段的条目 id（阻止保存）。 */
+  invalidIds: string[]
 }
 
 /** 卡片注入面：hooks（快照）+ 表单动作。 */
@@ -185,6 +189,8 @@ export interface TroubleshootCardFace {
   editGlobal: (key: 'defaultTimeRangeMinutes' | 'maxResults', text: string) => void
   /** 写入全部暂存编辑，随后按 Host 接受的值重新播种。 */
   save: () => void
+  /** 仅写入指定条目的暂存编辑（其余条目与全局字段不变）。 */
+  saveEntry: (id: string) => void
   /** 丢弃全部暂存编辑。 */
   discard: () => void
   /** 导出当前数据源配置为 JSON 文本（优先 Host 导出端点：保留 env: 引用；失败时本地快照兜底）。 */
@@ -260,6 +266,7 @@ export class TroubleshootCardController {
       available: false, writable: false, dirty: false, invalid: false, saving: false, failed: false,
       entries: [], global: { defaultTimeRangeMinutes: '60', maxResults: '200' },
       importInfo: { kind: 'none', message: '', count: 0 },
+      dirtyIds: [], invalidIds: [],
     })
     const unsubscribe = scope.subscribe(() => { this.reseed() })
     this.reseed()
@@ -346,6 +353,21 @@ export class TroubleshootCardController {
       if (!Number.isFinite(v) || v < 1) invalid = true
     }
 
+    const dirtyIds: string[] = []
+    const invalidIds: string[] = []
+    for (const entry of visible) {
+      const staged = this.stagedEntries.get(entry.id)
+      const hasEdits = staged !== undefined && Object.keys(staged).length > 0
+      const removed = this.removedIds.has(entry.id)
+      if (hasEdits || removed || entry.isNew) dirtyIds.push(entry.id)
+      if (invalid && hasEdits) {
+        let entryInvalid = false
+        for (const spec of ENTRY_FIELD_SPECS) {
+          if (draftInvalid(spec.key, entry[spec.key] as string)) { entryInvalid = true; break }
+        }
+        if (entryInvalid) invalidIds.push(entry.id)
+      }
+    }
     this.store.update((draft) => {
       draft.available = available
       draft.writable = snapshot.writable
@@ -353,6 +375,8 @@ export class TroubleshootCardController {
       draft.global = global
       draft.dirty = this.stagedEntries.size > 0 || Object.keys(this.stagedGlobal).length > 0 || this.removedIds.size > 0
       draft.invalid = invalid
+      draft.dirtyIds = dirtyIds
+      draft.invalidIds = invalidIds
       draft.saving = this.saving
       draft.failed = this.failed
       draft.importInfo = { ...this.importInfo }
@@ -419,13 +443,12 @@ export class TroubleshootCardController {
     this.reseed()
   }
 
-  /** 写入全部暂存编辑；随后按 Host 接受的值重新播种。 */
-  save(): void {
-    if (this.saving) return
+  /**
+   * 组装写入用的 dataSources 数组。
+   * @param onlyIds - 仅重建这些条目（用于单条保存）；缺省重建全部（含移除与新条目）。
+   */
+  private buildNextSources(onlyIds?: Set<string>): Record<string, unknown>[] {
     const snapshot = this.scope.getSnapshot()
-    if (!snapshot.writable || (!this.stagedEntries.size && Object.keys(this.stagedGlobal).length === 0 && this.removedIds.size === 0)) return
-
-    // 组装完整 dataSources 数组
     const current = (snapshot.value ?? {}) as Record<string, unknown>
     const rawSources = Array.isArray(current.dataSources) ? current.dataSources as Record<string, unknown>[] : []
     const next: Record<string, unknown>[] = []
@@ -434,7 +457,7 @@ export class TroubleshootCardController {
       if (this.removedIds.has(id)) continue
       const staged = this.stagedEntries.get(id)
       const merged = { ...raw }
-      if (staged !== undefined) {
+      if (staged !== undefined && (onlyIds === undefined || onlyIds.has(id))) {
         for (const spec of ENTRY_FIELD_SPECS) {
           const edit = staged[spec.key]
           if (edit?.clear === true) { merged[spec.key] = ''; continue }
@@ -446,8 +469,9 @@ export class TroubleshootCardController {
       }
       next.push(merged)
     }
-    // 追加新条目（staged 中存在但文档没有的）
+    // 追加新条目（staged 中存在但文档没有的；onlyIds 限定单条时只追加该 id）
     for (const [id, staged] of this.stagedEntries) {
+      if (onlyIds !== undefined && !onlyIds.has(id)) continue
       if (rawSources.some(raw => String((raw as Record<string, unknown>).id ?? '') === id) || this.removedIds.has(id)) continue
       const blank = blankEntry()
       const entry: Record<string, unknown> = { id }
@@ -460,7 +484,16 @@ export class TroubleshootCardController {
       }
       next.push(entry)
     }
+    return next
+  }
 
+  /** 写入全部暂存编辑；随后按 Host 接受的值重新播种。 */
+  save(): void {
+    if (this.saving) return
+    const snapshot = this.scope.getSnapshot()
+    if (!snapshot.writable || (!this.stagedEntries.size && Object.keys(this.stagedGlobal).length === 0 && this.removedIds.size === 0)) return
+
+    const next = this.buildNextSources()
     const patch: Record<string, unknown> = { dataSources: next }
     if (this.stagedGlobal.defaultTimeRangeMinutes !== undefined) {
       const v = Number(this.stagedGlobal.defaultTimeRangeMinutes.text.trim())
@@ -489,6 +522,31 @@ export class TroubleshootCardController {
         this.stagedEntries.clear()
         this.stagedGlobal
         this.removedIds.clear()
+        this.saving = false
+        this.importInfo = { kind: 'none', message: '', count: 0 }
+        this.reseed()
+      }
+    })()
+  }
+
+  /** 仅写入指定条目的暂存编辑（其余条目与全局字段保持不变）。 */
+  saveEntry(id: string): void {
+    if (this.saving) return
+    const snapshot = this.scope.getSnapshot()
+    const staged = this.stagedEntries.get(id)
+    if (staged === undefined || Object.keys(staged).length === 0) return
+    if (!snapshot.writable) return
+    const next = this.buildNextSources(new Set([id]))
+    this.saving = true
+    this.failed = false
+    this.reseed()
+    void (async () => {
+      try {
+        await this.scope.set('dataSources', next)
+      } catch {
+        this.failed = true
+      } finally {
+        this.stagedEntries.delete(id)
         this.saving = false
         this.importInfo = { kind: 'none', message: '', count: 0 }
         this.reseed()
@@ -718,6 +776,7 @@ export class TroubleshootCardController {
       clearField: (id, key) => this.clearField(id, key),
       editGlobal: (key, text) => this.editGlobal(key, text),
       save: () => this.save(),
+      saveEntry: (id) => this.saveEntry(id),
       discard: () => this.discard(),
       exportData: () => this.exportData(),
       fetchTemplate: () => this.fetchTemplate(),

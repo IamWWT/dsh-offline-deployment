@@ -89,6 +89,10 @@ export interface TroubleshootCardState extends CardShell {
     };
     /** 最近一次导入的状态（pending 时"保存"生效、"放弃"取消）。 */
     importInfo: ImportInfo;
+    /** 有未保存暂存编辑（或标记删除）的条目 id；供单条"保存此数据源"按钮启用/禁用。 */
+    dirtyIds: string[];
+    /** 存在非法字段的条目 id（阻止保存）。 */
+    invalidIds: string[];
 }
 /** 卡片注入面：hooks（快照）+ 表单动作。 */
 export interface TroubleshootCardFace {
@@ -110,6 +114,8 @@ export interface TroubleshootCardFace {
     editGlobal: (key: 'defaultTimeRangeMinutes' | 'maxResults', text: string) => void;
     /** 写入全部暂存编辑，随后按 Host 接受的值重新播种。 */
     save: () => void;
+    /** 仅写入指定条目的暂存编辑（其余条目与全局字段不变）。 */
+    saveEntry: (id: string) => void;
     /** 丢弃全部暂存编辑。 */
     discard: () => void;
     /** 导出当前数据源配置为 JSON 文本（优先 Host 导出端点：保留 env: 引用；失败时本地快照兜底）。 */
@@ -150,8 +156,15 @@ export declare class TroubleshootCardController {
     clearField(id: string, key: keyof DataSourceDraftEntry): void;
     /** 暂存一个全局字段的文本。 */
     editGlobal(key: 'defaultTimeRangeMinutes' | 'maxResults', text: string): void;
+    /**
+     * 组装写入用的 dataSources 数组。
+     * @param onlyIds - 仅重建这些条目（用于单条保存）；缺省重建全部（含移除与新条目）。
+     */
+    private buildNextSources;
     /** 写入全部暂存编辑；随后按 Host 接受的值重新播种。 */
     save(): void;
+    /** 仅写入指定条目的暂存编辑（其余条目与全局字段保持不变）。 */
+    saveEntry(id: string): void;
     /** 丢弃全部暂存编辑。 */
     discard(): void;
     /**

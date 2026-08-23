@@ -40,6 +40,13 @@ export npm_config_store_dir="$DSH_HOME/.pnpm-store"
 mkdir -p "$DSH_STATE" "$DSH_HOME" "$npm_config_cache"
 chown -R "$APP_USER:$APP_USER" "$DSH_STATE" "$DSH_HOME"
 
+# /workspace/open-here: 无 GUI 容器的 xdg-open 兼容目录（WebUI"打开配置文件"
+# 把目标文件复制到这里供用户访问）。必须归 appuser 所有且可写，否则
+# WebUI 以 appuser 运行时 cp 会 Permission denied，报"无法打开配置文件"。
+# 每次启动强制修正属主（bind mount 重建后可能变回 root）。
+mkdir -p /workspace/open-here
+chown -R "$APP_USER:$APP_USER" /workspace/open-here
+
 # --- keep the base image's sshd (optional, background) ---
 if [ ! -f /etc/ssh/ssh_host_ed25519_key ]; then
   ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N "" >/dev/null 2>&1 || true

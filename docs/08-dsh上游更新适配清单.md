@@ -30,7 +30,7 @@ git apply --check ../patches/deepseek-harness/01-connection-trustedhosts.patch
 
 ```bash
 bash build-runtime.sh --arch amd64 --dev
-bash scripts/apply-runtime-patches.sh [LAN_IP]   # 幂等，重注入
+bash scripts/apply-runtime-fixes.sh [LAN_IP]   # 幂等，重注入
 ```
 
 **检查点**（apply 脚本覆盖 5 处，逐一确认）：

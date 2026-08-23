@@ -147,12 +147,15 @@ function GlobalRow(props: {
 function EntryForm(props: {
   entry: DataSourceDraftEntry
   disabled: boolean
+  canSave: boolean
+  saving: boolean
   onEditField: (id: string, key: keyof DataSourceDraftEntry, text: string) => void
   onToggleEnabled: (id: string) => void
   onClearField: (id: string, key: keyof DataSourceDraftEntry) => void
   onRemove: (id: string) => void
+  onSaveEntry: (id: string) => void
 }) {
-  const { entry, disabled, onEditField, onToggleEnabled, onClearField, onRemove } = props
+  const { entry, disabled, canSave, saving, onEditField, onToggleEnabled, onClearField, onRemove, onSaveEntry } = props
   const typeOptions = ENTRY_FIELD_SPECS.find(spec => spec.key === "type")?.options ?? []
   const isPreset = typeOptions.some(option => option.value === entry.type)
   return (
@@ -205,8 +208,11 @@ function EntryForm(props: {
         const value = String(entry[spec.key] ?? "")
         return <FieldRow key={spec.key} spec={spec} value={value} disabled={disabled} onEdit={(text) => { onEditField(entry.id, spec.key, text) }} onClear={() => { onClearField(entry.id, spec.key) }} />
       })}
-      <div style={{ display: "flex", justifyContent: "flex-end", padding: "6px 0" }}>
-        <button type="button" style={STYLE.buttonDanger} disabled={disabled} onClick={() => { onRemove(entry.id) }}>删除此数据源</button>
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: "6px 0" }}>
+        <button type="button" style={STYLE.buttonPrimary} disabled={disabled || saving || !canSave} onClick={() => { onSaveEntry(entry.id) }}>
+          {saving ? "保存中…" : "保存此数据源"}
+        </button>
+        <button type="button" style={STYLE.buttonDanger} disabled={disabled || saving} onClick={() => { onRemove(entry.id) }}>删除此数据源</button>
       </div>
     </div>
   )
@@ -293,10 +299,13 @@ export function TroubleshootCard(props: TroubleshootCardProps): React.JSX.Elemen
             <EntryForm
               entry={entry}
               disabled={disabled}
+              canSave={state.dirtyIds.includes(entry.id) && !state.invalidIds.includes(entry.id)}
+              saving={state.saving}
               onEditField={props.editField}
               onToggleEnabled={props.toggleEnabled}
               onClearField={props.clearField}
               onRemove={props.removeEntry}
+              onSaveEntry={props.saveEntry}
             />
           </details>
         )

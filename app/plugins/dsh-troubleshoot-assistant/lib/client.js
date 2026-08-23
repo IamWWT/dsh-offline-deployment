@@ -152,7 +152,9 @@ var TroubleshootCardController = class {
       failed: false,
       entries: [],
       global: { defaultTimeRangeMinutes: "60", maxResults: "200" },
-      importInfo: { kind: "none", message: "", count: 0 }
+      importInfo: { kind: "none", message: "", count: 0 },
+      dirtyIds: [],
+      invalidIds: []
     });
     const unsubscribe = scope.subscribe(() => {
       this.reseed();
@@ -236,6 +238,24 @@ var TroubleshootCardController = class {
       const v = Number(this.stagedGlobal.maxResults.text.trim());
       if (!Number.isFinite(v) || v < 1) invalid = true;
     }
+    const dirtyIds = [];
+    const invalidIds = [];
+    for (const entry of visible) {
+      const staged = this.stagedEntries.get(entry.id);
+      const hasEdits = staged !== void 0 && Object.keys(staged).length > 0;
+      const removed = this.removedIds.has(entry.id);
+      if (hasEdits || removed || entry.isNew) dirtyIds.push(entry.id);
+      if (invalid && hasEdits) {
+        let entryInvalid = false;
+        for (const spec of ENTRY_FIELD_SPECS) {
+          if (draftInvalid(spec.key, entry[spec.key])) {
+            entryInvalid = true;
+            break;
+          }
+        }
+        if (entryInvalid) invalidIds.push(entry.id);
+      }
+    }
     this.store.update((draft) => {
       draft.available = available;
       draft.writable = snapshot.writable;
@@ -243,6 +263,8 @@ var TroubleshootCardController = class {
       draft.global = global;
       draft.dirty = this.stagedEntries.size > 0 || Object.keys(this.stagedGlobal).length > 0 || this.removedIds.size > 0;
       draft.invalid = invalid;
+      draft.dirtyIds = dirtyIds;
+      draft.invalidIds = invalidIds;
       draft.saving = this.saving;
       draft.failed = this.failed;
       draft.importInfo = { ...this.importInfo };
@@ -301,11 +323,12 @@ var TroubleshootCardController = class {
     this.failed = false;
     this.reseed();
   }
-  /** 写入全部暂存编辑；随后按 Host 接受的值重新播种。 */
-  save() {
-    if (this.saving) return;
+  /**
+   * 组装写入用的 dataSources 数组。
+   * @param onlyIds - 仅重建这些条目（用于单条保存）；缺省重建全部（含移除与新条目）。
+   */
+  buildNextSources(onlyIds) {
     const snapshot = this.scope.getSnapshot();
-    if (!snapshot.writable || !this.stagedEntries.size && Object.keys(this.stagedGlobal).length === 0 && this.removedIds.size === 0) return;
     const current = snapshot.value ?? {};
     const rawSources = Array.isArray(current.dataSources) ? current.dataSources : [];
     const next = [];
@@ -314,7 +337,7 @@ var TroubleshootCardController = class {
       if (this.removedIds.has(id)) continue;
       const staged = this.stagedEntries.get(id);
       const merged = { ...raw };
-      if (staged !== void 0) {
+      if (staged !== void 0 && (onlyIds === void 0 || onlyIds.has(id))) {
         for (const spec of ENTRY_FIELD_SPECS) {
           const edit = staged[spec.key];
           if (edit?.clear === true) {
@@ -330,6 +353,7 @@ var TroubleshootCardController = class {
       next.push(merged);
     }
     for (const [id, staged] of this.stagedEntries) {
+      if (onlyIds !== void 0 && !onlyIds.has(id)) continue;
       if (rawSources.some((raw) => String(raw.id ?? "") === id) || this.removedIds.has(id)) continue;
       const blank = blankEntry();
       const entry = { id };
@@ -345,6 +369,14 @@ var TroubleshootCardController = class {
       }
       next.push(entry);
     }
+    return next;
+  }
+  /** 写入全部暂存编辑；随后按 Host 接受的值重新播种。 */
+  save() {
+    if (this.saving) return;
+    const snapshot = this.scope.getSnapshot();
+    if (!snapshot.writable || !this.stagedEntries.size && Object.keys(this.stagedGlobal).length === 0 && this.removedIds.size === 0) return;
+    const next = this.buildNextSources();
     const patch = { dataSources: next };
     if (this.stagedGlobal.defaultTimeRangeMinutes !== void 0) {
       const v = Number(this.stagedGlobal.defaultTimeRangeMinutes.text.trim());
@@ -372,6 +404,30 @@ var TroubleshootCardController = class {
         this.stagedEntries.clear();
         this.stagedGlobal;
         this.removedIds.clear();
+        this.saving = false;
+        this.importInfo = { kind: "none", message: "", count: 0 };
+        this.reseed();
+      }
+    })();
+  }
+  /** 仅写入指定条目的暂存编辑（其余条目与全局字段保持不变）。 */
+  saveEntry(id) {
+    if (this.saving) return;
+    const snapshot = this.scope.getSnapshot();
+    const staged = this.stagedEntries.get(id);
+    if (staged === void 0 || Object.keys(staged).length === 0) return;
+    if (!snapshot.writable) return;
+    const next = this.buildNextSources(/* @__PURE__ */ new Set([id]));
+    this.saving = true;
+    this.failed = false;
+    this.reseed();
+    void (async () => {
+      try {
+        await this.scope.set("dataSources", next);
+      } catch {
+        this.failed = true;
+      } finally {
+        this.stagedEntries.delete(id);
         this.saving = false;
         this.importInfo = { kind: "none", message: "", count: 0 };
         this.reseed();
@@ -603,6 +659,7 @@ var TroubleshootCardController = class {
       clearField: (id, key) => this.clearField(id, key),
       editGlobal: (key, text) => this.editGlobal(key, text),
       save: () => this.save(),
+      saveEntry: (id) => this.saveEntry(id),
       discard: () => this.discard(),
       exportData: () => this.exportData(),
       fetchTemplate: () => this.fetchTemplate(),
@@ -712,7 +769,7 @@ function GlobalRow(props) {
   ] });
 }
 function EntryForm(props) {
-  const { entry, disabled, onEditField, onToggleEnabled, onClearField, onRemove } = props;
+  const { entry, disabled, canSave, saving, onEditField, onToggleEnabled, onClearField, onRemove, onSaveEntry } = props;
   const typeOptions = ENTRY_FIELD_SPECS.find((spec) => spec.key === "type")?.options ?? [];
   const isPreset = typeOptions.some((option) => option.value === entry.type);
   return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: STYLE.body, children: [
@@ -769,9 +826,14 @@ function EntryForm(props) {
         onClearField(entry.id, spec.key);
       } }, spec.key);
     }),
-    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { display: "flex", justifyContent: "flex-end", padding: "6px 0" }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { type: "button", style: STYLE.buttonDanger, disabled, onClick: () => {
-      onRemove(entry.id);
-    }, children: "\u5220\u9664\u6B64\u6570\u636E\u6E90" }) })
+    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", justifyContent: "flex-end", gap: 8, padding: "6px 0" }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { type: "button", style: STYLE.buttonPrimary, disabled: disabled || saving || !canSave, onClick: () => {
+        onSaveEntry(entry.id);
+      }, children: saving ? "\u4FDD\u5B58\u4E2D\u2026" : "\u4FDD\u5B58\u6B64\u6570\u636E\u6E90" }),
+      /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { type: "button", style: STYLE.buttonDanger, disabled: disabled || saving, onClick: () => {
+        onRemove(entry.id);
+      }, children: "\u5220\u9664\u6B64\u6570\u636E\u6E90" })
+    ] })
   ] });
 }
 function TroubleshootCard(props) {
@@ -848,10 +910,13 @@ function TroubleshootCard(props) {
           {
             entry,
             disabled,
+            canSave: state.dirtyIds.includes(entry.id) && !state.invalidIds.includes(entry.id),
+            saving: state.saving,
             onEditField: props.editField,
             onToggleEnabled: props.toggleEnabled,
             onClearField: props.clearField,
-            onRemove: props.removeEntry
+            onRemove: props.removeEntry,
+            onSaveEntry: props.saveEntry
           }
         )
       ] }, entry.id);
