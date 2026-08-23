@@ -31,3 +31,7 @@ dsh-offline-*.tar.*
 workspace/open-here/
 workspace/dsh/
 MIGRATE.md
+
+# 第三方项目代码（不纳入仓库，本地保留供容器使用）
+app/market/dsh-plugin/
+app/market/dsh-plugins-store/
