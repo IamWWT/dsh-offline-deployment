@@ -7,6 +7,11 @@
 
 ## 2026-08-23
 
+### pack.sh 新增 update 增量打包模式
+- **需求**：后续改插件/配置不想全量打包；office 等新装插件需进包（data/profiles 已含，全量自动带）。
+- **改动**：`pack.sh --mode update --only <模块>`——模块 plugin(源码+lib)/profile(插件安装+配置)/runtime-fixes(运行时修复)/workspace(工作区)/all(全量)，可逗号分隔；MIGRATE.md 生成段补充增量应用说明。
+- **验证**：实测 plugin+workspace=176K、profile=126M(含 office 插件)、runtime-fixes=2.9M，均正确。
+
 ### IP 变更适配（换内网/换机器）
 - **需求**：机器换 IP 后多处硬编码 IP 需同步，希望只改一处。
 - **改动**：

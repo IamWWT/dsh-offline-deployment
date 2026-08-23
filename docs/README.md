@@ -35,6 +35,7 @@ bash build-runtime.sh --arch <amd64|arm64> [--image <镜像>]
 # 打包
 ./pack.sh --mode runtime --arch <arch> [--compress xz]   # 精简直跑包（默认）
 ./pack.sh --mode dev --arch <arch>                       # 开发全量包
+./pack.sh --mode update --only plugin,workspace --arch <arch>  # 更新增量包（小体积，解压覆盖+restart）
 
 # 运行（目标机）
 docker compose up -d

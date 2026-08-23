@@ -32,6 +32,10 @@
 # # 打包模式：
 #   --mode runtime（默认）  精简直跑包：runtime + data + 插件 + 配置，不含源码；目标机解压即跑
 #   --mode dev             全量开发包：含源码（deepseek-harness），目标机可重新编译
+#   --mode update           更新增量包：按 --only 模块精打，解压覆盖 + docker compose restart 应用
+#   --only <模块>            仅与 update 搭配：plugin(插件源码+lib) / profile(插件安装+配置) /
+#                            runtime-fixes(运行时修复产物) / workspace(工作区) / all(全量，默认)
+#                            可逗号分隔（如 --only plugin,workspace）
 # 压缩方式：
 #   --compress gzip（默认） 兼容性最好；--compress xz 更小（慢）；--compress zstd 快且小
 #
@@ -74,6 +78,9 @@ KEEP_GIT="${KEEP_GIT:-0}"
 if [ "${PACK_MODE:-runtime}" = "dev" ]; then
   # dev 模式：默认不带 runtime（开发机可自行编译）；显式 KEEP_RUNTIME=1 可带
   KEEP_RUNTIME="${KEEP_RUNTIME:-0}"
+elif [ "${PACK_MODE:-runtime}" = "update" ] && [ -n "${ONLY_ARG:-}" ] && [ "${ONLY_ARG}" != "all" ]; then
+  # update 增量模式：默认不强制 runtime（按模块打包）
+  KEEP_RUNTIME="${KEEP_RUNTIME:-0}"
 else
   # runtime 模式：必须带 runtime（直跑包），默认 auto
   KEEP_RUNTIME="${KEEP_RUNTIME:-auto}"
@@ -104,6 +111,11 @@ while [ $# -gt 0 ]; do
       ARCH_ARG="$2"; shift 2 ;;
     --arch=*)
       ARCH_ARG="${1#--arch=}"; shift ;;
+    --only)
+      [ $# -ge 2 ] || { echo "pack: --only 需要一个值 (plugin|profile|runtime-fixes|workspace|all)" >&2; exit 1; }
+      ONLY_ARG="$2"; shift 2 ;;
+    --only=*)
+      ONLY_ARG="${1#--only=}"; shift ;;
     -h|--help)
       grep -E '^#   ' "$0" | sed 's/^#   //'; exit 0 ;;
     *)
@@ -125,9 +137,25 @@ echo "pack: 目标架构 = $PACK_ARCH（当前机器 = $HOST_ARCH）"
 case "${MODE_ARG:-runtime}" in
   runtime) PACK_MODE="runtime" ;;
   dev)     PACK_MODE="dev" ;;
-  *) echo "pack: --mode 取值必须为 runtime 或 dev，当前为 '$MODE_ARG'" >&2; exit 1 ;;
+  update)  PACK_MODE="update" ;;
+  *) echo "pack: --mode 取值必须为 runtime / dev / update，当前为 '$MODE_ARG'" >&2; exit 1 ;;
 esac
 echo "pack: 打包模式 = $PACK_MODE"
+
+# update 模式：模块选择（--only 可多次/逗号分隔；缺省 all=全量）
+ONLY_MODULES="${ONLY_ARG:-all}"
+# 允许 --only plugin,workspace 逗号分隔
+ONLY_LIST=""
+IFS=',' read -r -a ONLY_ARRAY <<< "$ONLY_MODULES"
+for m in "${ONLY_ARRAY[@]:-}"; do
+  case "$m" in
+    plugin|profile|runtime-fixes|workspace|all) ONLY_LIST="$ONLY_LIST $m" ;;
+    *) echo "pack: --only 未知模块 '$m'（支持 plugin/profile/runtime-fixes/workspace/all）" >&2; exit 1 ;;
+  esac
+done
+if [ "$PACK_MODE" = "update" ]; then
+  echo "pack: update 模式 —— 模块: ${ONLY_LIST# }（解压覆盖 + docker compose restart 应用）"
+fi
 # ---- 压缩方式：gzip（默认，兼容）/ xz（更小更慢）/ zstd（快+小）----
 case "${COMPRESS_ARG:-gzip}" in
   gzip) COMPRESS="gzip"; COMPRESS_EXT="gz" ;;
@@ -262,6 +290,20 @@ pack.sh 保证包内 runtime / .env 镜像 / data 原生模块三者架构一致
 - .env 内含 DEEPSEEK_API_KEY 等凭据，请妥善保管本压缩包。
 - 如需在目标机本地重建 DSH_IMAGE 镜像（不依赖 registry），请携带 build/ 目录
   （KEEP_BUILD=1 重新打包）。
+
+## update 增量包（--mode update）
+
+内网机器已有完整部署包、只需更新部分内容时，用增量包（小体积，解压覆盖即可）：
+- 打包（开发机）：./pack.sh --mode update --only <模块> --arch <arch>
+  模块：plugin(插件源码+lib) / profile(插件安装与配置) / runtime-fixes(运行时修复产物) /
+        workspace(工作区) / all(全量)；可逗号分隔（--only plugin,workspace）
+- 应用（内网机）：解压到部署根目录覆盖 → docker compose restart
+- 说明：
+  - plugin 模块：覆盖 app/plugins 后，若该插件是内置受保护插件，还需把 lib/ 同步到
+    data/profiles/node_modules/<包名>/（或由容器内构建）；否则仅解压即可；
+  - profile 模块：覆盖 data/profiles 与 settings.yaml（含插件 node_modules 与 bundles 清单）；
+  - runtime-fixes 模块：覆盖运行时修复产物（index.html / client.js / web-app patch），
+    目标机需与 .env 的 DSH_TRUSTED_HOSTS 一致（换 IP 见 docs/10-IP变更适配.md）。
 MDEOF
 chmod +x MIGRATE.md 2>/dev/null || true
 echo "pack: 已生成 MIGRATE.md"
@@ -497,18 +539,52 @@ echo "pack: 已清理同架构历史压缩包（$OUT_DIR/dsh-offline-${PACK_ARCH
 echo "pack: 开始打包 → $OUT_DIR/$OUT_NAME（目标架构 $PACK_ARCH）"
 echo "pack: 排除项：${EXCLUDES[*]}"
 
-# runtime 模式：精简直跑包（不含源码，目标机零编译）；dev 模式：全量（含源码）。
+# 模式与模块组装：
+#   runtime 模式：精简直跑包（不含源码，目标机零编译）；
+#   dev 模式：全量（含源码）；
+#   update 模式：按 --only 模块精打增量（解压覆盖 + docker compose restart 应用）。
 # 三个 compose 全部随包：docker-compose.yml（amd64 生产）、docker-compose.arm.yml
 # （arm64 生产）、docker-compose.dev.yml（故障助手插件开发，端口 9489）。
-TAR_ARGS=(.env docker-compose.yml docker-compose.arm.yml docker-compose.dev.yml dsh-entry.sh dsh-dev-entry.sh install MIGRATE.md pack-arch.txt .dsh-state data workspace app docs)
-if [ "$PACK_MODE" = "dev" ]; then
+if [ "$PACK_MODE" = "update" ] && [ "$ONLY_LIST" != " all" ]; then
+  # ---- update 增量模式：只打指定模块 ----
+  TAR_ARGS=(MIGRATE.md pack-arch.txt)
+  has_module() { [[ " $ONLY_LIST " == *" $1 "* ]]; }
+  if has_module plugin; then
+    TAR_ARGS+=(app/plugins)
+    echo "pack: update+plugin —— 插件源码与 lib（app/plugins）"
+  fi
+  if has_module profile; then
+    TAR_ARGS+=(data/profiles data/settings.yaml)
+    echo "pack: update+profile —— 插件安装与配置（data/profiles + settings.yaml）"
+  fi
+  if has_module runtime-fixes; then
+    TAR_ARGS+=(runtime/apps/web/dist runtime/packages/client/connection/lib runtime/packages/bundle/web-app)
+    echo "pack: update+runtime-fixes —— 运行时修复产物（index.html/client.js/web-app patch）"
+  fi
+  if has_module workspace; then
+    TAR_ARGS+=(workspace)
+    echo "pack: update+workspace —— 工作区（SOP/资产/手册）"
+  fi
+  # 增量包总是带上 .env 示例（不含密钥）与 README 式说明
+  TAR_ARGS+=(.env.example)
+  echo "pack: update 增量包（目标机：解压覆盖 → docker compose restart）"
+elif [ "$PACK_MODE" = "update" ]; then
+  # update + all：与 runtime 模式等价的全量
+  TAR_ARGS=(.env docker-compose.yml docker-compose.arm.yml docker-compose.dev.yml dsh-entry.sh dsh-dev-entry.sh install MIGRATE.md pack-arch.txt .dsh-state data workspace app docs)
+  if [ "$INCLUDE_RUNTIME" = "1" ]; then
+    TAR_ARGS+=(runtime)
+  fi
+  echo "pack: update+all —— 全量（等价 runtime 模式）"
+elif [ "$PACK_MODE" = "dev" ]; then
+  TAR_ARGS=(.env docker-compose.yml docker-compose.arm.yml docker-compose.dev.yml dsh-entry.sh dsh-dev-entry.sh install MIGRATE.md pack-arch.txt .dsh-state data workspace app docs)
   TAR_ARGS+=(deepseek-harness)
   echo "pack: dev 模式 —— 携带源码（deepseek-harness），包体积较大"
 else
+  TAR_ARGS=(.env docker-compose.yml docker-compose.arm.yml docker-compose.dev.yml dsh-entry.sh dsh-dev-entry.sh install MIGRATE.md pack-arch.txt .dsh-state data workspace app docs)
+  if [ "$INCLUDE_RUNTIME" = "1" ]; then
+    TAR_ARGS+=(runtime)
+  fi
   echo "pack: runtime 模式 —— 精简包（不含源码），目标机解压即跑"
-fi
-if [ "$INCLUDE_RUNTIME" = "1" ]; then
-  TAR_ARGS+=(runtime)
 fi
 
 case "$COMPRESS" in
@@ -529,7 +605,10 @@ fi
 
 SIZE=$(du -h "$OUT_DIR/$OUT_NAME" | cut -f1)
 echo "pack: 完成 → $OUT_DIR/$OUT_NAME（$SIZE）"
-if [ "$INCLUDE_RUNTIME" = "1" ]; then
+if [ "$PACK_MODE" = "update" ] && [ "$ONLY_LIST" != " all" ]; then
+  echo "pack: update 增量包 —— 目标机解压覆盖到部署根目录 → docker compose restart"
+  echo "pack:   注意：若包含 profile 模块，解压后需同步受保护副本或直接由容器内 dsh 加载"
+elif [ "$INCLUDE_RUNTIME" = "1" ]; then
   echo "pack: 本包含 runtime —— 目标机解压后 docker compose up -d 即可直接运行（免 PHASE 1）"
 else
   echo "pack: 本包为精简包 —— 目标机需先执行 PHASE 1（docker compose --profile build run --rm dsh-build）"
