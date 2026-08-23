@@ -4,7 +4,15 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
-LAN_IP="${1:-192.168.0.127}"
+# LAN_IP 解析顺序：命令行参数 > .env 的 DSH_TRUSTED_HOSTS（第一个）> 默认值
+# 换 IP 时只需改 .env（或传参），无需改脚本
+if [ -n "${1:-}" ]; then
+  LAN_IP="$1"
+elif [ -f .env ]; then
+  LAN_IP="$(grep -m1 '^DSH_TRUSTED_HOSTS=' .env | sed 's/^[^=]*=//' | tr -d '"' | tr -d "'" | cut -d',' -f1)"
+fi
+LAN_IP="${LAN_IP:-192.168.0.127}"
+echo "[dsh-offline] LAN_IP=$LAN_IP（来源：${1:+参数}/${1:-.env/默认}）"
 HTML="runtime/apps/web/dist/index.html"
 CLIENT="runtime/packages/client/connection/lib/client.js"
 WAPATCH="runtime/packages/bundle/web-app/cordis.patch.yml"
@@ -14,11 +22,13 @@ WAPATCH="runtime/packages/bundle/web-app/cordis.patch.yml"
 echo "[1/6] polyfill ..."
 grep -q "randomUUID polyfilled" "$HTML" 2>/dev/null || node scripts/_fix_polyfill.mjs "$HTML"
 echo "[2/6] trusted hosts ..."
-grep -q "__DSH_TRUSTED_HOSTS__" "$HTML" 2>/dev/null || node scripts/_fix_trusted.mjs "$HTML" "$LAN_IP"
+if grep -q "\"$LAN_IP\"" "$HTML" 2>/dev/null; then echo "  trusted hosts OK (\"$LAN_IP\")"
+else node scripts/_fix_trusted.mjs "$HTML" "$LAN_IP"; fi
 echo "[3/6] isLoopback ..."
 grep -q "__DSH_TRUSTED_HOSTS__" "$CLIENT" 2>/dev/null || node scripts/_fix_isloopback.mjs "$CLIENT"
 echo "[4/6] web-app bundle ..."
-grep -q "'$LAN_IP'" "$WAPATCH" 2>/dev/null || node scripts/_fix_webapp.mjs "$WAPATCH" "$LAN_IP"
+if grep -q "'$LAN_IP'" "$WAPATCH" 2>/dev/null; then echo "  web-app OK ('$LAN_IP')"
+else node scripts/_fix_webapp.mjs "$WAPATCH" "$LAN_IP"; fi
 echo "[5/6] open-feedback toast ..."
 grep -q "__dshOpenFeedbackModalInjected" "$HTML" 2>/dev/null || node scripts/_fix_openfeedback.mjs "$HTML"
 echo "[6/6] profile webserver ..."

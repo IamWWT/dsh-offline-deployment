@@ -7,6 +7,15 @@
 
 ## 2026-08-23
 
+### IP 变更适配（换内网/换机器）
+- **需求**：机器换 IP 后多处硬编码 IP 需同步，希望只改一处。
+- **改动**：
+  1. 新增 `.env.example`（含逐项注释 + 换 IP 流程）；`apply-runtime-fixes.sh` 的 LAN_IP 优先读 `.env` 的 DSH_TRUSTED_HOSTS（单一来源），其次命令行参数；
+  2. 新增 `docs/10-IP变更适配.md`（换 IP 标准流程、端口、业务 URL、多 IP、FAQ）；
+  3. **修复幂等 bug**：`_fix_trusted.mjs`/`_fix_webapp.mjs` 之前只查标记存在，IP 变了不更新——改为"先删旧注入再插新 IP"，演练验证（192.168.9.99→10.1.1.1→0.127）全周期正确；
+  4. `check-upstream.sh` 的 web-app 检查改为动态读 .env 的 IP。
+- **验证**：换 IP 演练全通过（index.html / web-app patch 跟随 .env）；check-upstream 15/15。
+
 ### 打开配置文件：toast → 真实内容框（modal）展示配置原文
 - **需求**：点击"打开配置文件"要看到真实内容（弹框），而非仅一句"已打开"提示。
 - **实现**：
