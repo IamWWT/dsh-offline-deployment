@@ -1,6 +1,8 @@
 # DeepSeek Harness 源码讲解
 
 > 面向**没听说过 Cordis**、想从零看懂 deepseek-harness 源码的读者。
+> ⚠️ 本文基于 **rc.7**，当前项目已升级到 **rc.2**——API 细节可能已有变化，源码行号仅供对照思路。
+>
 > 本文基于仓库 **deepseek-ai/deepseek-harness @ 0.1.0-rc.7**（git commit `99f6f02fec`），
 > 所有源码引用均给出真实文件路径与行号，你可以对照源码逐段阅读。
 > 图全部由仓库同目录的 `*.mmd`（Mermaid 源码）生成，PNG 在 `images/` 下。
