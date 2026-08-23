@@ -1,0 +1,5 @@
+node_modules/
+tsconfig.types.json
+*.tsbuildinfo
+.DS_Store
+*.tgz

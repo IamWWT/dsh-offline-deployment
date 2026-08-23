@@ -1,0 +1,40 @@
+# 示例：数据源配置（写入 $DSH_HOME/settings.yaml，即宿主 ./data/settings.yaml；热生效）
+# 认证方式: none | bearer | basic | header；Token/密码支持 env:<环境变量名> 引用（推荐）
+troubleshoot:
+  metricsEnabled: true
+  metricsName: Prometheus
+  metricsUrl: https://prom.example.com
+  metricsAuthType: bearer
+  metricsToken: env:OBS_TOKEN
+  metricsQueryPath: /api/v1/query_range
+  metricsTimeoutMs: 15000
+  metricsDescription: PromQL 指标查询；查询字段 query 为 PromQL 表达式
+
+  logsEnabled: true
+  logsName: 统一日志平台
+  logsUrl: https://logs.example.com
+  logsAuthType: basic
+  logsUsername: ops
+  logsPassword: env:LOGS_PASSWORD
+  logsQueryPath: /search
+  logsDescription: 日志检索；query 为检索表达式，filter 为附加条件
+
+  traceEnabled: true
+  traceName: Trace 平台
+  traceUrl: https://trace.example.com
+  traceAuthType: header
+  traceToken: env:TRACE_TOKEN
+  traceHeaderName: X-Trace-Token
+  traceQueryPath: /api/v1/traces
+  traceDescription: 调用链查询；traceId 精确查单条链路，service 按服务过滤
+
+  cmdbEnabled: true
+  cmdbName: CMDB
+  cmdbUrl: https://cmdb.example.com
+  cmdbAuthType: bearer
+  cmdbToken: env:CMDB_TOKEN
+  cmdbQueryPath: /api/v1/changes
+  cmdbDescription: 变更历史；resource 为目标资源，region 为环境过滤
+
+  defaultTimeRangeMinutes: 60
+  maxResults: 200

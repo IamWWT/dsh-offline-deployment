@@ -1,0 +1,7 @@
+# 示例：在 web profile 中覆盖插件默认配置（写入 ~/.dsh/profiles/web/cordis.patch.yml 或全局层）
+- id: troubleshoot-assistant
+  config:
+    defaultTimeoutMs: 20000
+    maxResponseBytes: 4194304
+    maxConcurrency: 4
+    reportDir: /workspace/fault-reports

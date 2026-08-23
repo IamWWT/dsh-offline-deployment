@@ -1,0 +1,24 @@
+# @dsh-tools/troubleshoot-assistant 的 bundle patch。
+# 作为 profile 的一个 bundle 层被加载：插入插件行 "troubleshoot-assistant"。
+# 用户可通过更高层的 patch（profile 的 cordis.patch.yml / 全局层 / --patch）
+# 按 id 覆盖该行的 config（默认超时、响应上限、SOP 文件路径、离线市场快照等）。
+- insert:
+    - id: troubleshoot-assistant
+      name: '@dsh-tools/troubleshoot-assistant'
+      config:
+        defaultTimeoutMs: 15000
+        maxResponseBytes: 2097152
+        maxConcurrency: 4
+        reportDir: ''
+        # 离线插件市场：dshmarket 的目录端点由本插件提供（/api/dshmarket/plugins.json）。
+        # 优先返回官方目录的本地快照（随包携带，离线可浏览全部插件）；缺失时回退兜底目录。
+        marketSnapshotPath: '/app/market/offline-market/plugins.json'
+        maxSnapshotBytes: 8388608
+        # 故障排查 SOP（按工作区生效）：
+        #   1) 会话工作区内 <sopRelativePath> 文件（不同工作区可放不同 SOP）；
+        #   2) 全局基线 <sopPath>（默认工作区的 SOP）；
+        #   3) 内置默认。
+        # 编辑对应文件即实时生效（每次提示词组装重新读取）。
+        sopPath: '/workspace/故障排查使用助手工作区/故障排查SOP.md'
+        sopRelativePath: '故障排查SOP.md'
+        maxSopBytes: 65536
