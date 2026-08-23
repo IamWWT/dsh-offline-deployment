@@ -1,0 +1,20 @@
+const { chromium } = require('/home/wwt/.nvm/versions/node/v24.12.0/lib/node_modules/playwright');
+(async () => {
+  const browser = await chromium.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'], executablePath: '/usr/bin/google-chrome' });
+  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  const errors = [];
+  page.on('console', msg => { if (msg.type() === 'error') errors.push(msg.text().slice(0, 150)); });
+  await page.goto('http://192.168.0.127:9488/', { waitUntil: 'domcontentloaded' }).catch(() => {});
+  await page.waitForTimeout(10000);
+  const input = await page.evaluate(() => { const ta = document.querySelector('textarea, [contenteditable="true"], [role="textbox"]'); if (ta) { ta.focus(); return true; } return false; });
+  console.log('输入框:', input);
+  await page.keyboard.type('先调用 troubleshoot_status 列出数据源，再查询指标 count(up)，告诉我结果', { delay: 15 });
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(40000);
+  const text = await page.evaluate(() => document.body.innerText.slice(-3500));
+  console.log('=== agent 回复（尾部）===');
+  console.log(text.replace(/\n/g, '|').slice(-1500));
+  console.log('=== 错误 ===');
+  errors.slice(0, 5).forEach((e, i) => console.log((i+1) + '.', e));
+  await browser.close();
+})().catch(e => console.error('FATAL:', e.message));
