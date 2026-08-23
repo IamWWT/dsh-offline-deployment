@@ -7,7 +7,7 @@
 
 ## 2026-08-23
 
-### dev/生产容器真正分离 + 插件路径修正
+### dev/生产容器真正分离 + 插件路径修正（复盘见 [postmortem-20260823-dev-container.md](postmortem-20260823-dev-container.md)）
 - **问题**：`docker-compose -f docker-compose.dev.yml ps` 显示生产容器（误判）——dev 容器从未成功启动过；
 - **根因**：① dsh-dev-entry.sh 插件路径旧（/app/dsh-troubleshoot-assistant → /app/plugins/...）；② runtime web-app patch 存在 trustedHosts 键重复（YAML 解析失败，dev 启动即退）——此前 _fix_webapp 的"先删后插"逻辑未删除原始行，导致注入行+原始行并存；
 - **修复**：dsh-dev-entry.sh 路径 + _fix_webapp.mjs 同时删除注入行与原始行；dedupe 现有 patch；全仓文档/脚本旧路径批量修正（README/MIGRATE/pack.sh/docs/01/04/06）；

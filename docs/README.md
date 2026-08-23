@@ -19,6 +19,7 @@
 | [09-测试验证规范.md](09-测试验证规范.md) | **必须遵守**：按真实用户路径验证（分层 L0-L4、Playwright 浏览器验证） | 全体 |
 | [上游测试策略-参考.md](上游测试策略-参考.md) | 上游 deepseek-harness 测试策略 copy（rc.2，未修改），09 规范的依据 | 开发者 |
 | [CHANGELOG.md](CHANGELOG.md) | 变更记录：每次改动的验证证据（按 09 规范） | 全体 |
+| [postmortem-20260823-dev-container.md](postmortem-20260823-dev-container.md) | 复盘：dev/生产"未分离"误判——路径迁移未同步 + 未按真实路径验证 | 全体 |
 | [10-IP变更适配.md](10-IP变更适配.md) | **换 IP / 迁内网必看**：只改 .env 一处，其余自动跟随 | 运维 |
 
 ## License
