@@ -7,6 +7,14 @@
 
 ## 2026-08-23
 
+### 打开配置文件：toast → 真实内容框（modal）展示配置原文
+- **需求**：点击"打开配置文件"要看到真实内容（弹框），而非仅一句"已打开"提示。
+- **实现**：
+  1. 插件新增宿主路由 `GET /api/troubleshoot/settings-doc`（`src/settings-doc.ts`）：经 `ctx.get('settings').documentPath` 读 settings.yaml 原文返回；
+  2. 前端注入脚本（`scripts/_fix_openfeedback.mjs`）拦截 `settings.openDocument` 成功后 fetch 该端点，弹出 modal（标题=文件路径、可滚动、Esc/遮罩/关闭按钮关闭）展示配置原文；
+  3. 修复重复注入：旧 toast 脚本与新 modal 脚本共用防重标记导致新脚本被短路——清理旧块、新脚本改用 `__dshOpenFeedbackModalInjected`。
+- **验证**（L3）：`scripts/verify-open-document.cjs` 5 项断言全 PASS（localhost + LAN 双路径）——按钮存在 / modal 弹出且含真实配置（providers）/ openDocument 200 / settings-doc 200 / OPEN_LOG 落盘。
+
 ### 打开配置文件"没有反应"修复（含前端 toast）
 - **现象**：WebUI「通用设置 → 打开配置文件」点击无反馈（早期为"无法打开配置文件"报错）。
 - **排查**：
@@ -49,4 +57,3 @@
 - `--host 0.0.0.0` 被拒 → profile webserver host 配置 + socat 桥接。
 - Prometheus 查询缺 `step` → metrics 默认 60s + 参数校验。
 - 工具输出非 lossless JSON → `sanitizeJson`。
-

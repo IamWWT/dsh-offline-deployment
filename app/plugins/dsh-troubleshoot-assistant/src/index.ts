@@ -34,6 +34,7 @@ import { defaultCatalogEntries, registerMarketCatalog, type MarketPluginEntry } 
 import { resolveSopForWorkspace } from './sop.ts'
 import { buildRuntime, registerTools } from './tools.ts'
 import { registerExportRoute } from './export.ts'
+import { registerSettingsDocRoute } from './settings-doc.ts'
 import type { ToolRuntimeContext } from './types.ts'
 
 /** 插件名（cordis.yml 行的 name 使用包名；此处为 Loader 的日志标识）。 */
@@ -134,6 +135,9 @@ export function apply(ctx: Context, config: Config): void {
 
   // 注册本地插件市场目录路由（仅 Web 表面存在时；商店经 DSHM_API 指向自身）。
   registerMarketCatalog(ctx, [...defaultCatalogEntries(), ...config.catalogExtra], config.marketSnapshotPath, config.maxSnapshotBytes)
+
+  // 注册配置文件原文查看路由：前端"打开配置文件"后 fetch 此端点，弹框展示真实内容。
+  registerSettingsDocRoute(ctx)
 
   // 注册故障排查 SOP 提示词段落：每次组装按"会话工作区 → 全局文件 → 内置"
   // 实时解析用户可编辑文件（改文件即生效，不同工作区可生效不同 SOP）。

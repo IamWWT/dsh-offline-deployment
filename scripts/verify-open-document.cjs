@@ -31,10 +31,10 @@ const check = (name, ok, detail) => {
   await page.click('button:has-text("打开配置文件")');
   let toast = null;
   try {
-    await page.waitForSelector('#dsh-open-feedback-toast', { timeout: 8000 });
-    toast = await page.evaluate(() => document.getElementById('dsh-open-feedback-toast').textContent);
+    await page.waitForSelector('#dsh-settings-doc-modal', { timeout: 8000 });
+    toast = await page.evaluate(() => { const el = document.getElementById('dsh-settings-doc-modal'); return el ? el.querySelector('pre').textContent.slice(0, 200) : null; });
   } catch { toast = null; }
-  check('点击后 toast 出现', toast !== null && toast.includes('已打开'), toast ? toast.slice(0, 40) : '无');
+  check('点击后弹出内容框（modal）', toast !== null && toast.length > 0 && toast.includes('providers'), toast ? toast.slice(0, 40) : '无');
   check('settings.openDocument 请求发出', openReq > 0, openReq + ' req');
   check('settings.openDocument 响应 200', openResp > 0 && openRespStatus === 200, 'HTTP ' + openRespStatus);
 

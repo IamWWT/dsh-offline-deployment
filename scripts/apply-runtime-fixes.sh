@@ -20,7 +20,7 @@ grep -q "__DSH_TRUSTED_HOSTS__" "$CLIENT" 2>/dev/null || node scripts/_fix_isloo
 echo "[4/6] web-app bundle ..."
 grep -q "'$LAN_IP'" "$WAPATCH" 2>/dev/null || node scripts/_fix_webapp.mjs "$WAPATCH" "$LAN_IP"
 echo "[5/6] open-feedback toast ..."
-grep -q "__dshOpenFeedbackInjected" "$HTML" 2>/dev/null || node scripts/_fix_openfeedback.mjs "$HTML"
+grep -q "__dshOpenFeedbackModalInjected" "$HTML" 2>/dev/null || node scripts/_fix_openfeedback.mjs "$HTML"
 echo "[6/6] profile webserver ..."
 cat > data/profiles/web/cordis.patch.yml <<EOF
 # 用户 patch 层：webserver 监听容器内 0.0.0.0（官方拒绝 CLI --host，config 层允许）

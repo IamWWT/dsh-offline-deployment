@@ -1284,6 +1284,34 @@ function registerExportRoute(ctx, getSource) {
   });
 }
 
+// src/settings-doc.ts
+import { readFileSync as readFileSync2 } from "node:fs";
+function registerSettingsDocRoute(ctx) {
+  ctx.inject(["webServer", "settings"], (webCtx) => {
+    webCtx.effect(() => webCtx.webServer.register({
+      kind: "exact",
+      path: "/api/troubleshoot/settings-doc",
+      handler: (_req, res) => {
+        const settings = webCtx.get("settings");
+        const path = settings?.documentPath;
+        if (path === void 0 || path === "") {
+          res.writeHead(404, { "content-type": "application/json; charset=utf-8" });
+          res.end(JSON.stringify({ exists: false, path: null, text: "" }));
+          return;
+        }
+        try {
+          const text = readFileSync2(path, "utf8");
+          res.writeHead(200, { "content-type": "application/json; charset=utf-8", "cache-control": "no-cache" });
+          res.end(JSON.stringify({ exists: true, path, text }));
+        } catch {
+          res.writeHead(404, { "content-type": "application/json; charset=utf-8" });
+          res.end(JSON.stringify({ exists: false, path, text: "" }));
+        }
+      }
+    }), "troubleshoot-assistant: settings doc view route");
+  });
+}
+
 // src/index.ts
 var name = "troubleshoot-assistant";
 var inject = ["tools"];
@@ -1327,6 +1355,7 @@ function apply(ctx, config) {
   registerTools(ctx, getRuntime);
   registerExportRoute(ctx, () => source());
   registerMarketCatalog(ctx, [...defaultCatalogEntries(), ...config.catalogExtra], config.marketSnapshotPath, config.maxSnapshotBytes);
+  registerSettingsDocRoute(ctx);
   ctx.inject(["systemPrompt"], (promptCtx) => {
     promptCtx.systemPrompt.section({
       name: "troubleshoot:sop",
