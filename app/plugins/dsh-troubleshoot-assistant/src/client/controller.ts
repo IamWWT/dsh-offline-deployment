@@ -298,9 +298,9 @@ export class TroubleshootCardController {
         name: field('name'),
         url: field('url'),
         authType: field('authType') || 'none',
-        token: '', // secret 永不回显
+        token: field('token'), // secret：回显本次暂存草稿；文档已存值永不回显
         username: field('username'),
-        password: '', // secret 永不回显
+        password: field('password'), // secret：同上
         headerName: field('headerName') || 'Authorization',
         queryPath: field('queryPath'),
         timeoutMs: field('timeoutMs') || '',
@@ -323,7 +323,8 @@ export class TroubleshootCardController {
         name: staged.name?.text ?? '',
         url: staged.url?.text ?? '',
         authType: staged.authType?.text ?? 'none',
-        token: '', username: '', password: '', headerName: 'Authorization',
+        token: staged.token?.text ?? '', username: staged.username?.text ?? '',
+        password: staged.password?.text ?? '', headerName: 'Authorization',
         queryPath: staged.queryPath?.text ?? '',
         timeoutMs: staged.timeoutMs?.text ?? '',
         description: staged.description?.text ?? '',

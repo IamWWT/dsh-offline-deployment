@@ -7,6 +7,13 @@
 
 ## 2026-08-23
 
+### 数据源 secret 字段（token/password）填不进修复
+- **问题**：设置卡片添加数据源时，token/password 输入后值立即消失（无法填写）。
+- **根因**：controller reseed() 把 token/password 硬编码置空（`token: ''`），不读 staged 暂存——输入被 editField 存进 staged，但 reseed 重渲染时强制回空。
+- **修复**：reseed 中 secret 字段改读 `field('token')`/`field('password')`（回显本次暂存草稿；文档已存值仍永不回显）；新建条目同样处理。
+- **完备性核对**：12 个字段（type/name/enabled/url/authType/token/username/password/headerName/queryPath/timeoutMs/description）reseed 全部读 staged。
+- **验证**（L3）：新增 `scripts/verify-data-source-fields.cjs`，11 项断言全 PASS——token/password 填入保留、保存折叠、token/password/username/timeoutMs/queryPath 落库；测试数据已清理。
+
 ### dev/生产容器真正分离 + 插件路径修正（复盘见 [postmortem-20260823-dev-container.md](postmortem-20260823-dev-container.md)）
 - **问题**：`docker-compose -f docker-compose.dev.yml ps` 显示生产容器（误判）——dev 容器从未成功启动过；
 - **根因**：① dsh-dev-entry.sh 插件路径旧（/app/dsh-troubleshoot-assistant → /app/plugins/...）；② runtime web-app patch 存在 trustedHosts 键重复（YAML 解析失败，dev 启动即退）——此前 _fix_webapp 的"先删后插"逻辑未删除原始行，导致注入行+原始行并存；
