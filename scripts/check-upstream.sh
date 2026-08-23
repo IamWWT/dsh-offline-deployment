@@ -15,15 +15,37 @@ PASS=0
 ok()   { PASS=$((PASS+1)); echo "  ✅ $1"; }
 fail() { FAIL=$((FAIL+1)); echo "  ❌ $1"; }
 
-echo "=== 1. 源码补丁已应用 ==="
+echo "=== 1. 源码补丁：应用状态 + 基线校验 ==="
 if [ -d deepseek-harness/.git ]; then
-  # 已应用（源码含修改）= PASS；未应用且可 apply = 提示需应用；冲突 = FAIL
+  # --- 1a. 应用状态（语义指纹） ---
   if grep -q "isTrustedApiRequest(request, trustedHosts)" deepseek-harness/packages/client/connection/src/index.ts 2>/dev/null; then
-    ok "01-connection-trustedhosts.patch 已应用（trustedHosts 修复在位）"
+    ok "01-connection-trustedhosts.patch 已应用（语义指纹在位）"
   elif (cd deepseek-harness && git apply --check ../patches/deepseek-harness/01-connection-trustedhosts.patch 2>/dev/null); then
     fail "补丁未应用（可应用）：cd deepseek-harness && git apply ../patches/deepseek-harness/01-connection-trustedhosts.patch"
   else
     fail "补丁冲突（源码已变，需手动处理，见 docs/08 第 8 节）"
+  fi
+
+  # --- 1b. 基线校验（上游更新后补丁是否仍可信） ---
+  META="patches/deepseek-harness/01-connection-trustedhosts.meta"
+  if [ -f "$META" ]; then
+    BASE_SHA=$(grep -m1 '^baseline_commit' "$META" | cut -d'=' -f2 | tr -d ' ')
+    AFFECTED=$(grep -m1 '^affected_files' "$META" | cut -d'=' -f2 | tr -d ' ')
+    HEAD_SHA=$(cd deepseek-harness && git rev-parse HEAD)
+    if [ -z "$BASE_SHA" ] || [ -z "$HEAD_SHA" ]; then
+      fail "补丁基线元数据缺失（$META 需含 baseline_commit）"
+    elif [ "$BASE_SHA" = "$HEAD_SHA" ]; then
+      ok "补丁基线匹配上游 HEAD（$BASE_SHA，补丁必然可信）"
+    else
+      # 上游更新过：检查涉及文件是否变动
+      if (cd deepseek-harness && git diff --quiet "$BASE_SHA"..HEAD -- "$AFFECTED" 2>/dev/null); then
+        ok "上游已更新但补丁涉及文件未变动（$AFFECTED，补丁仍适用）"
+      else
+        fail "⚠️ 上游已更新且补丁涉及文件有变动（$AFFECTED）——补丁可能失效！需重新生成：cd deepseek-harness && git apply -R ../patches/deepseek-harness/01-connection-trustedhosts.patch 后按 docs/08 重打"
+      fi
+    fi
+  else
+    fail "补丁基线元数据缺失：$META（需创建，记录 baseline_commit）"
   fi
 else
   echo "  （deepseek-harness 未 clone，跳过）"

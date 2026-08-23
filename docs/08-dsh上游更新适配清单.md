@@ -16,12 +16,25 @@
 6. 提交适配结果
 ```
 
-## 1. 源码补丁可应用性
+## 1. 源码补丁可应用性 + 基线校验
 
 ```bash
 cd deepseek-harness
 git apply --check ../patches/deepseek-harness/01-connection-trustedhosts.patch
 # 输出为空 = 补丁仍可应用；有冲突 = 需手动解决（见第 8 节）
+```
+
+**基线校验**（check-upstream.sh 第 1b 项自动执行）：
+- 读取 `patches/deepseek-harness/01-connection-trustedhosts.meta` 的 `baseline_commit`
+- 与当前上游 HEAD 对比：一致 → 补丁必然可信；不一致但 affected_files 未动 → 仍适用；affected_files 变动 → FAIL，需重打
+
+**重新生成补丁**（上游改了涉及文件时）：
+```bash
+cd deepseek-harness
+git apply -R ../patches/deepseek-harness/01-connection-trustedhosts.patch   # 撤销旧补丁
+# 手动重新实现修改（可能需适配新代码结构）
+git diff -- packages/client/connection/src/index.ts > ../patches/deepseek-harness/01-connection-trustedhosts.patch
+# 更新 .meta 的 baseline_commit = $(git rev-parse HEAD)
 ```
 
 **检查点**：`PRIVILEGED_METHODS` 的 `isTrustedApiRequest(request, [])` → 应为 `trustedHosts`（LAN 配置管理必需）。

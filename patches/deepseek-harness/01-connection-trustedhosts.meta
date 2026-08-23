@@ -1,0 +1,13 @@
+# [dsh-offline 补丁基线元数据]
+# 上游仓库: deepseek-harness
+# 补丁文件: 01-connection-trustedhosts.patch（同目录，git apply 用）
+upstream = deepseek-harness
+baseline_commit = b150a551b8d465e31e418e1b2eaf5e79bbb7d28e
+baseline_tag = rc.2
+affected_files = packages/client/connection/src/index.ts
+semantic_fingerprint = isTrustedApiRequest(request, trustedHosts)
+
+# 上游更新后的判定（由 check-upstream.sh 读取）：
+# 1. baseline_commit == 当前上游 HEAD → 补丁必然适用（语义指纹再确认）
+# 2. HEAD 变了但 affected_files 无改动 → 补丁大概率仍适用（git apply --check 确认）
+# 3. affected_files 有改动 → 必须重新生成补丁（git apply 大概率失败，按 docs/08 处理）

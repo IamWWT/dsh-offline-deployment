@@ -12,6 +12,20 @@ patches/
 └── README.md
 ```
 
+## 补丁基线（可靠性）
+
+每个源码补丁（`patches/<上游>/NN-描述.patch`）配同名 `.meta` 文件，记录：
+- `baseline_commit`：生成补丁时的上游 commit SHA（`git rev-parse HEAD`）
+- `affected_files`：补丁涉及的文件（逗号分隔）
+- `semantic_fingerprint`：判定补丁在位的关键代码串
+
+**上游更新后的判定**（`bash scripts/check-upstream.sh` 自动执行）：
+1. HEAD == baseline_commit → 补丁必然可信
+2. HEAD 变了但 affected_files 未变动 → 补丁仍适用（git apply --check 再确认）
+3. affected_files 有变动 → 报 FAIL，需重新生成补丁（`git apply -R` 撤销旧版后重打）
+
+**生成新补丁**：`cd deepseek-harness && git diff -- <文件> > ../patches/deepseek-harness/NN-描述.patch`，并更新 .meta 的 baseline_commit。
+
 ## 应用补丁
 
 ```bash

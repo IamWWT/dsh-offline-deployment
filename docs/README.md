@@ -20,6 +20,11 @@
 | [上游测试策略-参考.md](上游测试策略-参考.md) | 上游 deepseek-harness 测试策略 copy（rc.2，未修改），09 规范的依据 | 开发者 |
 | [CHANGELOG.md](CHANGELOG.md) | 变更记录：每次改动的验证证据（按 09 规范） | 全体 |
 
+## License
+
+- 本项目：Apache License 2.0（见 [LICENSE](../LICENSE)）
+- 第三方声明与上游 MIT 保留：见 [NOTICE](../NOTICE)
+
 ## 快速参考
 
 ```bash
