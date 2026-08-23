@@ -2,7 +2,7 @@
 # dsh-dev-entry.sh — 故障助手插件开发入口（docker-compose.dev.yml 专用）。
 #
 # 开发循环（秒级，无需 20-40 分钟的 dsh 全量编译）：
-#   1. 从 /app/dsh-troubleshoot-assistant 源码构建插件
+#   1. 从 /app/plugins/dsh-troubleshoot-assistant 源码构建插件
 #      （esbuild/tsc 复用 ./runtime 的 node_modules，DSH_REPO 指向 runtime）；
 #   2. 把构建产物刷新到已安装副本 /opt/dsh/profiles/node_modules/@dsh-tools/troubleshoot-assistant/lib；
 #   3. 走 dsh-entry.sh run 阶段启动 dsh web（从 ./runtime 启动，不挂 dsh 源码）。
@@ -19,7 +19,7 @@
 #   - 端口 9489（与生产 9488 隔离，可同时运行）。
 set -euo pipefail
 
-PLUGIN_SRC="${PLUGIN_SRC:-/app/dsh-troubleshoot-assistant}"
+PLUGIN_SRC="${PLUGIN_SRC:-/app/plugins/dsh-troubleshoot-assistant}"
 PLUGIN_INSTALLED="${PLUGIN_INSTALLED:-/opt/dsh/profiles/node_modules/@dsh-tools/troubleshoot-assistant}"
 REPO="${DSH_REPO:-/opt/dsh-runtime}"
 APP_USER="appuser"

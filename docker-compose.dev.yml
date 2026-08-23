@@ -10,7 +10,7 @@
 #   改完插件源码：docker compose -f docker-compose.dev.yml restart
 #   看日志：      docker compose -f docker-compose.dev.yml logs -f
 #   跑插件单测（宿主，无需容器）：
-#     cd app/dsh-troubleshoot-assistant && bash link-deps.sh && node --test tests/*.spec.ts
+#     cd app/plugins/dsh-troubleshoot-assistant && bash link-deps.sh && node --test tests/*.spec.ts
 #
 # 与生产编排（docker-compose.yml）的区别：
 #   - 入口换成 dsh-dev-entry.sh（先构建插件再启动）；

@@ -49,4 +49,4 @@ echo "DSH_BIND=0.0.0.0" >> .env && docker compose up -d
 - 《DeepSeek Harness 插件开发与发布复盘》：插件架构、配置化、bundle 发布
 - 《OmniOps：基于 Agent 框架的 MySQL 慢查询诊断实践》：技术栈→组件→诊断技能三级结构、SKILL.md 方法论、MCP 数据采集
 
-> 故障排查助手插件源码：`app/dsh-troubleshoot-assistant/`
+> 故障排查助手插件源码：`app/plugins/dsh-troubleshoot-assistant/`

@@ -57,7 +57,7 @@ offline/
 | `docker-compose.dev.yml` | **故障助手插件开发/测试** | 9489 | `docker compose -f docker-compose.dev.yml up -d` |
 
 - 生产编排**不挂载 dsh 源码**，只从 `./runtime` 启动（编译与运行分离）。
-- dev 编排复用 `./runtime` 的依赖，从 `app/dsh-troubleshoot-assistant` **源码秒级重建插件**
+- dev 编排复用 `./runtime` 的依赖，从 `app/plugins/dsh-troubleshoot-assistant` **源码秒级重建插件**
   并刷新已安装副本，再启动 dsh web——改完源码 `restart` 即生效，无需 20–40 分钟全量编译。
 - 端口 9488（生产）与 9489（开发）**可并存**。
 
@@ -77,7 +77,7 @@ offline/
 
 ## 故障排查助手插件
 
-源码：`app/dsh-troubleshoot-assistant/`（容器内 `/app/dsh-troubleshoot-assistant`）。
+源码：`app/plugins/dsh-troubleshoot-assistant/`（容器内 `/app/plugins/dsh-troubleshoot-assistant`）。
 已**预装**到 web profile（`data/profiles/web/package.json` 的 bundles + 共享目录
 `data/profiles/node_modules/@dsh-tools/troubleshoot-assistant`），并注册本地离线插件市场
 （`GET /api/dshmarket/plugins.json`）。
@@ -86,18 +86,18 @@ offline/
 - 安全：Token/密码 `role('secret')` 脱敏、`env:NAME` 引用不落盘、仅 http/https、全链路超时、
   响应体上限、报告路径防目录穿越、文件 0600。
 - 测试：`node --test tests/*.spec.ts`（48 用例，http/settings/sop/tools 全覆盖）。
-- 详见插件内 [README](app/dsh-troubleshoot-assistant/README.md) 与
-  [docs/DEVELOPMENT.md](app/dsh-troubleshoot-assistant/docs/DEVELOPMENT.md)。
+- 详见插件内 [README](app/plugins/dsh-troubleshoot-assistant/README.md) 与
+  [docs/DEVELOPMENT.md](app/plugins/dsh-troubleshoot-assistant/docs/DEVELOPMENT.md)。
 
 ### 插件开发循环（本机）
 
 ```bash
 docker compose -f docker-compose.dev.yml up -d        # 启动（从源码重建插件）
-# …改 app/dsh-troubleshoot-assistant/src/ …
+# …改 app/plugins/dsh-troubleshoot-assistant/src/ …
 docker compose -f docker-compose.dev.yml restart      # 秒级重建 + 重启
 docker compose -f docker-compose.dev.yml logs -f      # 看日志
 # 宿主单测（可选）：
-cd app/dsh-troubleshoot-assistant && bash link-deps.sh && node --test tests/*.spec.ts
+cd app/plugins/dsh-troubleshoot-assistant && bash link-deps.sh && node --test tests/*.spec.ts
 ```
 
 ---

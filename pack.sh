@@ -177,8 +177,8 @@ for required in docker-compose.yml dsh-entry.sh .env data/profiles/web/package.j
     exit 1
   fi
 done
-if [ ! -e app/dsh-troubleshoot-assistant/package.json ]; then
-  echo "pack: 警告：未找到 app/dsh-troubleshoot-assistant（故障排查助手插件源码）—— 请确认部署目录完整" >&2
+if [ ! -e app/plugins/dsh-troubleshoot-assistant/package.json ]; then
+  echo "pack: 警告：未找到 app/plugins/dsh-troubleshoot-assistant（故障排查助手插件源码）—— 请确认部署目录完整" >&2
 fi
 
 # ---- 生成迁移说明（随包携带） ----
@@ -217,7 +217,7 @@ pack.sh 保证包内 runtime / .env 镜像 / data 原生模块三者架构一致
 
 ### 故障助手插件开发（可选，docker-compose.dev.yml）
    docker compose -f docker-compose.dev.yml up -d
-   # 从 app/dsh-troubleshoot-assistant 源码秒级重建插件并启动，端口 9489；
+   # 从 app/plugins/dsh-troubleshoot-assistant 源码秒级重建插件并启动，端口 9489；
    # 改完源码：docker compose -f docker-compose.dev.yml restart
 
 ### 方式 B：精简包（无 runtime）——目标机需先联网执行 PHASE 1
@@ -275,7 +275,7 @@ pack.sh 保证包内 runtime / .env 镜像 / data 原生模块三者架构一致
   本地快照（app/offline-market/plugins.json，1685 个插件离线可浏览），快照缺失时回退兜底目录。
 - 市场源码随包携带：app/dsh-plugins-store/、app/dsh-plugin/。
 - **目录分工**：workspace/ = 用户空间（仅 故障排查使用助手工作区）；app/ = 项目材料
-  （插件源码 app/dsh-troubleshoot-assistant、离线市场快照 app/offline-market、市场源码 app/dsh-plugins-store、app/dsh-plugin），
+  （插件源码 app/plugins/dsh-troubleshoot-assistant、离线市场快照 app/offline-market、市场源码 app/dsh-plugins-store、app/dsh-plugin），
   容器内挂载 /app。
 - **默认工作区（随包挂载）**：workspace/故障排查使用助手工作区/（容器内 /workspace/故障排查使用助手工作区）：
   含 使用手册.md 与 故障排查SOP.md（用户可编辑提示词）。

@@ -7,6 +7,12 @@
 
 ## 2026-08-23
 
+### dev/生产容器真正分离 + 插件路径修正
+- **问题**：`docker-compose -f docker-compose.dev.yml ps` 显示生产容器（误判）——dev 容器从未成功启动过；
+- **根因**：① dsh-dev-entry.sh 插件路径旧（/app/dsh-troubleshoot-assistant → /app/plugins/...）；② runtime web-app patch 存在 trustedHosts 键重复（YAML 解析失败，dev 启动即退）——此前 _fix_webapp 的"先删后插"逻辑未删除原始行，导致注入行+原始行并存；
+- **修复**：dsh-dev-entry.sh 路径 + _fix_webapp.mjs 同时删除注入行与原始行；dedupe 现有 patch；全仓文档/脚本旧路径批量修正（README/MIGRATE/pack.sh/docs/01/04/06）；
+- **验证**：dev 容器 9489 与生产 9488 独立共存均 healthy；dev restart 秒级重建（2.56s）插件源码；check-upstream 15/15。
+
 ### pack.sh 新增 update 增量打包模式
 - **需求**：后续改插件/配置不想全量打包；office 等新装插件需进包（data/profiles 已含，全量自动带）。
 - **改动**：`pack.sh --mode update --only <模块>`——模块 plugin(源码+lib)/profile(插件安装+配置)/runtime-fixes(运行时修复)/workspace(工作区)/all(全量)，可逗号分隔；MIGRATE.md 生成段补充增量应用说明。
