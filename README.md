@@ -1,4 +1,8 @@
-# dsh 离线部署（deepseek-harness + 故障排查助手）
+# dsh-aiops-kits-offline · DSH AIOps 离线工具集
+
+> 基于 DeepSeek Harness 的 **AIOps 运维诊断插件集合**（故障排查助手等），打包为
+> **自包含、可离线运行**的部署，支持 x86（amd64）与 arm（arm64）双架构，
+> 面向内网隔离环境（无 npm / 无外网 / 无需编译即可运行）。
 
 把 DeepSeek Harness（dsh，245 包 TypeScript monorepo）连同**故障排查助手插件**打包成
 **自包含、可离线运行**的部署，支持 **x86（amd64）** 与 **arm（arm64）** 双架构，
