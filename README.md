@@ -19,7 +19,14 @@ offline/
 ├── data/                    # DSH_HOME：会话 / 配置 / profiles（含预装插件的 node_modules）
 │   └── profiles/web/        #   web profile 的 bundles（dshmarket / better-sidebar / 故障助手等）
 ├── app/                     # 项目材料（非用户空间，挂载到容器 /app）
-│   └── dsh-troubleshoot-assistant/   # ★ 故障排查助手插件源码（src/lib/tests/docs）
+│   ├── plugins/             # ★ 所有插件（后续开发统一放这里）
+│   │   └── dsh-troubleshoot-assistant/   # 故障排查助手插件源码（src/lib/tests/docs）
+│   ├── market/              # 插件市场相关
+│   │   ├── offline-market/  #   离线市场快照（1686 插件）
+│   │   ├── dsh-plugin/      #   市场插件源码
+│   │   └── dsh-plugins-store/ # 商店源码
+│   ├── scripts/             # 辅助脚本
+│   └── xdg-open             # 容器内打开配置文件兼容脚本
 ├── workspace/               # 用户空间（挂载到容器 /workspace；默认工作区 + SOP）
 ├── build/                   # 镜像构建上下文（非运行时材料）
 ├── docker-compose.yml       # 生产编排（amd64 本机）
