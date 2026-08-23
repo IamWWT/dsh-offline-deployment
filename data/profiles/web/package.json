@@ -9,11 +9,13 @@
         "@dsh-tools/troubleshoot-assistant",
         "dsh-better-sidebar",
         "dsh-deeptutor",
+        "@huanlin/dsh-plugin-better-sidebar-plugin-office",
         "dshmarket"
       ]
     }
   },
   "dependencies": {
+    "@huanlin/dsh-plugin-better-sidebar-plugin-office": "^0.1.0",
     "dsh-better-sidebar": "^0.15.2",
     "dsh-deeptutor": "0.1.9",
     "dshmarket": "1.18.1"

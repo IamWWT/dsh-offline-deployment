@@ -9,5 +9,8 @@ minimumReleaseAgeExclude:
   - 'dshmarket@1.15.0'
   - 'dshmarket@1.17.1'
   - dsh-better-sidebar@0.14.0
+  - dsh-better-sidebar@0.15.2
+  - dshmarket@1.18.1
 allowBuilds:
   node-pty: true
+  protobufjs: true
