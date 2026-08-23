@@ -1,0 +1,22 @@
+flowchart TD
+  subgraph BROWSER["浏览器 (packages/client)"]
+    BOOT["window.__DSH_BOOT__<br/>modules 行扫描注入"]
+    UI["ui-* 插件<br/>conversation/tool/goal/settings..."]
+    CLIENT["AbstractApiClient<br/>fetch 载体"]
+  end
+
+  subgraph HOST["Node 宿主 (packages/host)"]
+    WS["webserver<br/>node:http 路由注册"]
+    API["apiProxy<br/>API 网关 (typert RPC)"]
+    REM["api-remotes<br/>远程过程定义"]
+  end
+
+  subgraph CORE2["核心服务"]
+    S["ctx.sessions / ctx.agents /<br/>ctx.tools / ctx.llm / ctx.agentLoop"]
+  end
+
+  UI --> BOOT
+  UI --> CLIENT --> API
+  API --> REM --> S
+  WS --> API
+  WS --> UI

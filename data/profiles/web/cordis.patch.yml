@@ -1,0 +1,7 @@
+# 用户 patch 层：webserver 监听容器内 0.0.0.0（官方拒绝 CLI --host，但 config 层允许；
+# 容器是隔离边界，对外暴露由 docker 端口映射控制）。
+# 局域网访问信任在 web-app bundle patch 静态声明（见 runtime bundle patch）。
+- id: webserver
+  config:
+    host: 0.0.0.0
+    port: 3080

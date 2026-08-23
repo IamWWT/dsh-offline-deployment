@@ -1,0 +1,33 @@
+# 运行时与数据（体积大/机器相关/含凭据）
+runtime/
+runtime-arm64/
+runtime-amd64-bak/
+data/.pnpm-store/
+data/.npm-cache/
+data/sessions/
+data/settings.yaml
+data/settings.yaml.bak
+data/.anonymous-user-id
+data/storages/
+data/profiles/node_modules/
+.dsh-state/
+
+# 构建/源码依赖
+build/
+deepseek-harness/
+node_modules/
+.pnpm-store-workspace/
+
+# 打包产物
+dsh-offline-*.tar.*
+*.tgz
+
+# 其他
+.env
+.env.bak
+.claude/
+.claude.resume
+.tmp-*
+workspace/open-here/
+workspace/dsh/
+MIGRATE.md

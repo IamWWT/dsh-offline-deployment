@@ -1,0 +1,10 @@
+flowchart TD
+  ROOT["空根 cordis.yml<br/>[]"] --> BASE["Layer1: dsh-base<br/>cordis.patch.yml (insert ~80 行)"]
+  BASE --> WEBAPP["Layer2: dsh-web-app<br/>覆盖 base 行 + 插入 Web 行"]
+  WEBAPP --> PROFP["Layer3: 用户 profile<br/>~/.dsh/profiles/web/cordis.patch.yml"]
+  PROFP --> HOMEP["Layer4: 全局用户层<br/>~/.dsh/cordis.patch.yml"]
+  HOMEP --> OVER["Layer5: --patch 覆盖层"]
+  OVER --> TREE["最终插件树"]
+
+  style ROOT fill:#fef3c7
+  style TREE fill:#d1fae5,stroke:#059669,stroke-width:2px

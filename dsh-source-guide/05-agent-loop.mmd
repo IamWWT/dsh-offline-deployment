@@ -1,0 +1,12 @@
+stateDiagram-v2
+  [*] --> idle: 创建 Agent
+  idle --> running: wakeDriver()<br/>(有唤醒消息)
+  running --> running: turn() 循环<br/>while(await this.turn())
+  running --> idle: 队列空 或 turn() 返回 false
+  idle --> maintenance: runMaintenance()
+  maintenance --> idle: 维护完成, 若有 pending 则唤醒
+  running --> running: cancel() → abort signal
+  note right of running
+    turn = 一轮对话
+    step = 一次模型请求+工具调用
+  end note

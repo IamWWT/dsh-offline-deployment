@@ -1,0 +1,39 @@
+# dsh (deepseek-harness) — arm64 内网机器运行编排。
+#
+# 与 docker-compose.yml 的唯一区别：镜像默认 arm64 标签。
+# 使用前提（二选一）：
+#   A. 本目录来自 pack.sh --arch arm64 打出的包（内含 arm64 的 ./runtime）：
+#        tar -xzf dsh-offline-*.tar.gz && docker compose -f docker-compose.arm.yml up -d
+#   B. 在 arm64 机器上自行构建过 runtime（bash build-runtime.sh --arch arm64）。
+#
+# 注意：.env 中若显式设置了 DSH_IMAGE，会覆盖本文件的默认值——
+# pack.sh 打 arm 包时已把包内 .env 的 DSH_IMAGE 改写为 arm64 标签，正常无需手工改。
+services:
+  dsh:
+    image: ${DSH_IMAGE:-rocky8-pygojava-wwt_arm64:v20260817}
+    container_name: dsh-harness
+    ports:
+      # 宿主 9488 -> 容器 3090（socat 桥接 -> 127.0.0.1:3080 的 dsh web）
+      - "127.0.0.1:9488:3090"
+    # 运行阶段：dsh-entry.sh run —— 从 /opt/dsh-runtime 启动，不挂载源码
+    entrypoint: ["/bin/bash", "/usr/local/bin/dsh-entry.sh", "run"]
+    environment:
+      DSH_HOME: /opt/dsh
+      DSH_TELEMETRY_DISABLED: "1"
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-}
+      UNSLOTH_API_KEY: ${UNSLOTH_API_KEY:-}
+    volumes:
+      # 运行时（PHASE 1 固化的构建产物；含 node_modules；必须为 arm64 架构）
+      - ./runtime:/opt/dsh-runtime
+      # dsh 数据目录：会话 / API Key / 配置（DSH_HOME）
+      - ./data:/opt/dsh
+      # 工作区目录（用户空间）
+      - ./workspace:/workspace
+      # 项目代码/脚本/插件源码/离线市场快照（非用户空间）
+      - ./app:/app
+      # 构建状态标记（arch / 构建 / 运行时标记）
+      - ./.dsh-state:/opt/dsh-state
+      # 入口脚本
+      - ./dsh-entry.sh:/usr/local/bin/dsh-entry.sh:ro
+    restart: unless-stopped

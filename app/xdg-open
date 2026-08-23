@@ -1,0 +1,16 @@
+#!/bin/bash
+# [dsh-offline] 容器内无 GUI 的 xdg-open 兼容：把目标文件复制到工作区供用户访问。
+# 文件固定写到 /workspace/open-here/settings.yaml（每次覆盖），日志写 /workspace/open-here/OPEN_LOG.md
+set -e
+TARGET="$1"
+if [ -z "$TARGET" ] || [ ! -f "$TARGET" ]; then
+  echo "[xdg-open] 无法打开: $TARGET" >&2
+  exit 1
+fi
+mkdir -p /workspace/open-here
+DEST="/workspace/open-here/settings.yaml"
+cp "$TARGET" "$DEST"
+chmod 644 "$DEST"
+echo "[xdg-open] 已复制 $TARGET → $DEST"
+echo "- $(date "+%Y-%m-%d %H:%M:%S") 打开配置文件 → $DEST（来自 $TARGET）" >> /workspace/open-here/OPEN_LOG.md
+exit 0

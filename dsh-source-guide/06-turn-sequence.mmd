@@ -1,0 +1,31 @@
+sequenceDiagram
+  autonumber
+  participant IN as Inbox
+  participant TL as turn()/preStep
+  participant SP as systemPrompt
+  participant L as agent-loop
+  participant LLM as ctx.llm
+  participant TC as tool-calls 调度器
+  participant LG as session 日志
+
+  IN->>TL: claim(target, turn) 领取消息
+  TL->>SP: assemble(agent ctx)
+  TL->>TL: waterfall agent/pre-step<br/>(监听者可改写/拒绝)
+  TL->>LG: append user/message (逐条)
+  TL->>L: step(assembly)
+  L->>L: waterfall agent/request<br/>产出 provider/model 配置
+  L->>LG: append request/header
+  L->>LLM: llm.stream(request)<br/>(waterfall 可重试/代理)
+  LLM-->>L: async chunks
+  L->>LG: append assistant/chunk (每块)
+  L->>L: BlockAssembler 组装
+  L->>LG: append assistant/message
+  alt 有工具调用
+    L->>TC: executeToolCalls()
+    TC->>TC: tools/pre-execute waterfall<br/>→ 审批 → 守卫
+    TC->>TC: tools/execute waterfall → 执行体
+    TC->>LG: append tool/call + tool/result
+    TC-->>L: 结论: 继续下一 step 或结束
+  end
+  L->>LG: append step/end
+  L->>LG: append turn/end

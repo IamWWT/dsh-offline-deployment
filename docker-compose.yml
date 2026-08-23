@@ -1,0 +1,55 @@
+# dsh (deepseek-harness) — 生产运行编排（docker-compose 只负责【运行】，不负责编译）。
+#
+# 编译（预编译 runtime）由独立脚本完成，一条 docker 命令，不经过 compose：
+#   bash build-runtime.sh --arch amd64|arm64 [--dev]
+#     —— 在【有网络/目标架构镜像】的开发机上执行，产物固化到 ./runtime。
+#     （dsh 是 245 包 TypeScript monorepo，node_modules 即运行时本体，
+#       无法再裁剪/编译成单文件；--dev 保留全量，--prod 因 pnpm prune
+#       对 workspace 不适用而等价于全量。）
+#
+# 运行：
+#   docker compose up -d        —— 从 ./runtime 启动 dsh web，不挂源码、不编译。
+#
+# 迁移到 arm64：把整个目录拷过去 → 改 .env 的 DSH_IMAGE 为 arm64 标签 →
+# 先在目标架构机器上 bash build-runtime.sh --arch arm64（需网络）→ up -d。
+services:
+  dsh:
+    image: ${DSH_IMAGE}
+    container_name: dsh-harness
+    ports:
+      # socat 桥接（dsh web 只监听 127.0.0.1：安全设计，防远程代码执行暴露）。
+      # docker-proxy 直接 NAT 到容器内 127.0.0.1:3080（dsh web 的安全 loopback 监听）。
+      # docker-proxy 正确转发 HTTP 与 WebSocket 升级（socat 纯 TCP 转发破坏 WS，已弃用）。
+      # 对外暴露范围由宿主端口映射 host_ip 控制（默认 0.0.0.0：本机+局域网都可访问；
+      # 需仅本机访问时设 DSH_PUBLIC_PORT=127.0.0.1:9488）。
+      - "${DSH_PUBLIC_PORT:-0.0.0.0:9488}:3080"
+    # 运行阶段：dsh-entry.sh run —— 从 /opt/dsh-runtime 启动，不挂载源码
+    entrypoint: ["/bin/bash", "/usr/local/bin/dsh-entry.sh", "run"]
+    environment:
+      DSH_HOME: /opt/dsh
+      DSH_TELEMETRY_DISABLED: "1"
+      # 服务器部署：设为 0.0.0.0 允许局域网/公网访问（见 docs/03-网络与服务器部署.md）
+      DSH_BIND: ${DSH_BIND:-127.0.0.1}
+      # 局域网/自定义域访问时加入 API 信任围栏（防 403），逗号分隔
+      DSH_TRUSTED_HOSTS: ${DSH_TRUSTED_HOSTS:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-}
+      UNSLOTH_API_KEY: ${UNSLOTH_API_KEY:-}
+    volumes:
+      # 运行时（PHASE 1 固化的构建产物；含 node_modules）
+      - ./runtime:/opt/dsh-runtime
+      # dsh 数据目录：会话 / API Key / 配置（DSH_HOME）
+      - ./data:/opt/dsh
+      # 工作区目录（用户空间）
+      - ./workspace:/workspace
+      # 项目代码/脚本/插件源码/离线市场快照（非用户空间）
+      - ./app:/app
+      # 构建状态标记（arch / 构建 / 运行时标记）
+      - ./.dsh-state:/opt/dsh-state
+      # 入口脚本
+      - ./dsh-entry.sh:/usr/local/bin/dsh-entry.sh:ro
+      # 容器内无 GUI：提供 xdg-open 兼容（把配置文件复制到工作区供访问）
+      - ./app/xdg-open:/usr/local/bin/xdg-open:ro
+    restart: unless-stopped
+
+  # PHASE 1：安装/构建（挂载源码；仅按需运行，不随 up 启动）

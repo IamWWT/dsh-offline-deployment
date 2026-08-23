@@ -1,0 +1,36 @@
+flowchart TD
+  subgraph CLI["dsh CLI (apps/cli)"]
+    BIN["bin.ts<br/>动态导入分发"]
+    ARGS["args.ts<br/>commander 解析"]
+  end
+
+  subgraph BOOT["启动层 (packages/boot/app-boot)"]
+    PB["profile-boot.ts<br/>composeProfile 堆叠 patch 层"]
+    BOOTFN["boot()<br/>new Context + Loader 插件<br/>+ mountRootInclude"]
+    INCLUDE["cordis:include<br/>读 cordis.yml + 应用 patch"]
+  end
+
+  subgraph PROF["Profile (dsh.profile.bundles)"]
+    B1["dsh-base<br/>~80 个基础插件行"]
+    B2["dsh-web-app<br/>Web 表面行"]
+  end
+
+  subgraph TREE["Cordis 插件树 (一切皆插件)"]
+    LLM["ctx.llm<br/>模型适配器"]
+    SESS["ctx.sessions<br/>会话事件日志"]
+    AGENT["ctx.agents<br/>Agent 注册表"]
+    LOOP["ctx.agentLoop<br/>ReactLoopAgent 驱动"]
+    TOOLS["ctx.tools<br/>工具注册表+管线"]
+    SP["ctx.systemPrompt<br/>提示词组装"]
+  end
+
+  subgraph SURFACE["产品表面"]
+    WEB["Web GUI<br/>http://127.0.0.1:3080"]
+    HEAD["headless 一次性任务"]
+  end
+
+  BIN --> ARGS --> PB --> BOOTFN --> INCLUDE --> B1 --> B2
+  INCLUDE --> TREE
+  LLM & SESS & AGENT & TOOLS & SP --> LOOP
+  LOOP --> WEB
+  LOOP --> HEAD

@@ -1,0 +1,42 @@
+# dsh 故障助手插件【开发/测试】编排（docker-compose.dev.yml）。
+#
+# 目的：单独开发/测试 @dsh-tools/troubleshoot-assistant 插件，无需 dsh 全量编译。
+# 原理：复用 ./runtime（预编译产物，含 esbuild/tsc 与全部依赖）+ 挂载插件源码；
+#       每次启动由 dsh-dev-entry.sh 从源码重建插件并刷新已安装副本，再启动 dsh web。
+#
+# 用法（本机 x86，amd64 镜像）：
+#   docker compose -f docker-compose.dev.yml up -d
+#   访问：http://127.0.0.1:9489（注意是 9489，与生产 9488 隔离，可同时运行）
+#   改完插件源码：docker compose -f docker-compose.dev.yml restart
+#   看日志：      docker compose -f docker-compose.dev.yml logs -f
+#   跑插件单测（宿主，无需容器）：
+#     cd app/dsh-troubleshoot-assistant && bash link-deps.sh && node --test tests/*.spec.ts
+#
+# 与生产编排（docker-compose.yml）的区别：
+#   - 入口换成 dsh-dev-entry.sh（先构建插件再启动）；
+#   - 端口 9489；容器名 dsh-harness-dev；
+#   - 其余挂载与生产一致（runtime/data/workspace/app/.dsh-state）。
+#
+# 注意：宿主 uid 须为 1000（与容器 appuser 一致），否则插件源码目录不可写、构建会失败。
+services:
+  dsh-dev:
+    image: ${DSH_IMAGE:-rocky8-pygojava-wwt_amd64:v20260817}
+    container_name: dsh-harness-dev
+    ports:
+      - "127.0.0.1:9489:3090"
+    entrypoint: ["/bin/bash", "/usr/local/bin/dsh-dev-entry.sh"]
+    environment:
+      DSH_HOME: /opt/dsh
+      DSH_TELEMETRY_DISABLED: "1"
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-}
+      UNSLOTH_API_KEY: ${UNSLOTH_API_KEY:-}
+    volumes:
+      - ./runtime:/opt/dsh-runtime
+      - ./data:/opt/dsh
+      - ./workspace:/workspace
+      - ./app:/app
+      - ./.dsh-state:/opt/dsh-state
+      - ./dsh-entry.sh:/usr/local/bin/dsh-entry.sh:ro
+      - ./dsh-dev-entry.sh:/usr/local/bin/dsh-dev-entry.sh:ro
+    restart: "no"

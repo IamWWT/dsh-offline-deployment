@@ -1,0 +1,27 @@
+sequenceDiagram
+  autonumber
+  participant U as 用户
+  participant B as bin.ts
+  participant A as args.ts
+  participant PB as profile-boot.ts
+  participant AB as app-boot boot()
+  participant LD as Loader 插件
+  participant INC as cordis:include
+  participant ROW as 插件行(服务)
+
+  U->>B: dsh web "hello"
+  B->>A: parseDshArgs(argv)
+  A-->>B: {mode:'profile', profile:'web', args:['hello']}
+  B->>PB: runProfile()
+  PB->>PB: composeProfile():<br/>bundles+patch+home+overlay
+  PB->>AB: boot(name, rootConfig, patches)
+  AB->>AB: new Context() (Proxy)
+  AB->>LD: ctx.plugin(Loader)
+  AB->>INC: mountRootInclude():<br/>row {id:'include', name:'cordis:include'}
+  INC->>INC: 读 cordis.yml ([] 空根) + 应用全部 patch
+  INC->>ROW: 按 id 插入/覆盖插件行
+  ROW->>ROW: 服务依赖就绪后激活 (inject)
+  AB->>AB: assertEntriesActivated():<br/>审计每个 fiber
+  AB-->>PB: 返回根 Context
+  PB->>PB: 安装 HMR 监听 cordis.patch.yml
+  PB-->>B: 启动完成, 交给 Web 插件

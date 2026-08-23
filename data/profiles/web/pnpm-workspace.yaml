@@ -1,0 +1,13 @@
+packages:
+  - .
+
+nodeLinker: hoisted
+autoInstallPeers: false
+minimumReleaseAgeExclude:
+  - '@deepseek-ai/dsh-settings@0.1.0-rc.8'
+  - '@deepseek-ai/dsh-tools@0.1.0-rc.8'
+  - 'dshmarket@1.15.0'
+  - 'dshmarket@1.17.1'
+  - dsh-better-sidebar@0.14.0
+allowBuilds:
+  node-pty: true

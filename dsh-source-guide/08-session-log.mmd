@@ -1,0 +1,27 @@
+flowchart TD
+  subgraph PRODUCERS["生产者 (append 方)"]
+    L["agent-loop<br/>turn/start, step/start,<br/>user/message, assistant/*,<br/>tool/*, turn/end"]
+    O["其他插件<br/>fork, checkpoint..."]
+  end
+
+  subgraph CORE["dsh-session (事件溯源)"]
+    LOG["append-only 日志<br/>SessionEvent[] seq 递增"]
+    SURF["surface<br/>surfaceOp 标记(surface 节点)"]
+    DERIVE["deriveMessages()<br/>缓存投影 → Message[]"]
+  end
+
+  subgraph CONSUMERS["消费者"]
+    LLMC["模型请求<br/>history"]
+    UI["Web UI 渲染<br/>(session/event)"]
+    PERS["持久化插件<br/>JSONL/SQLite"]
+    REPLAY["回放/快照测试"]
+    TITLE["会话标题"]
+  end
+
+  PRODUCERS --> LOG --> SURF --> DERIVE --> LLMC
+  LOG --> PERS
+  LOG --> REPLAY
+  SURF --> UI
+  LOG --> TITLE
+
+  style CORE fill:#e0e7ff,stroke:#4f46e5

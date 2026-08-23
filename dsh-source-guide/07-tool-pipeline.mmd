@@ -1,0 +1,13 @@
+flowchart LR
+  A["模型输出<br/>tool-call block"] --> B["executeToolCalls()<br/>解析参数, 按模式分组"]
+  B --> C["createExecution()<br/>参数快照+冻结<br/>token/callId/agent"]
+  C --> D{"callerCancelled?"}
+  D -- 是 --> E["final-result<br/>aborted-before-dispatch"]
+  D -- 否 --> F["waterfall tools/pre-execute<br/>(审批 ask / 策略)"]
+  F --> G{"守卫 guardReason"}
+  G -- 拒绝 --> H["post-result 错误结果"]
+  G -- 允许 --> I["waterfall tools/execute<br/>(超时/包装)"]
+  I --> J["执行工具体<br/>execute(args, exec)"]
+  J --> K["waterfall tools/post-execute<br/>(改写/收尾)"]
+  K --> L["finalizeContent + 物化<br/>tool/result 入日志"]
+  L --> M["结论: concludesTurn?<br/>deferContext → 下一 step"]

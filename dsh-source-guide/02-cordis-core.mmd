@@ -1,0 +1,34 @@
+flowchart TD
+  subgraph CORE["Cordis 核心概念"]
+    PLUGIN["插件 Plugin<br/>(函数 or Service 子类)"]
+    CTX["上下文 Context<br/>本身是个 Proxy"]
+    SERVICE["服务 Service<br/>ctx.llm / ctx.tools ..."]
+    INJECT["inject 声明依赖<br/>服务就绪才启动"]
+    EVENTS["类型化事件<br/>emit / waterfall / parallel / serial / bail"]
+    EFFECT["可逆效应 Effect<br/>注册即副作用, 卸载即撤销"]
+  end
+
+  subgraph IMPL["源码实现 (vendor/cordis/src)"]
+    CTXCLS["context.ts<br/>Proxy + isolate/intercept/extend"]
+    REFLECT["reflect.ts<br/>ctx.get/provide 解析"]
+    REG["registry.ts<br/>插件注册表 + inject"]
+    EVSVC["events.ts<br/>EventsService 分发 + 过滤"]
+    FIBER["fiber.ts<br/>生命周期 + 效应收集/回滚"]
+    SVC["service.ts<br/>Service 基类"]
+  end
+
+  PLUGIN --> CTX
+  CTX --> SERVICE
+  SERVICE --> INJECT
+  CTX --> EVENTS
+  PLUGIN --> EFFECT
+  EFFECT --> FIBER
+
+  CTXCLS --> REFLECT --> REG --> FIBER
+  EVSVC --> FIBER
+  SVC --> REFLECT
+
+  classDef pink fill:#ffe4e6,stroke:#e11d48
+  classDef blue fill:#dbeafe,stroke:#2563eb
+  class PLUGIN,CTX,SERVICE,INJECT,EVENTS,EFFECT pink
+  class CTXCLS,REFLECT,REG,EVSVC,FIBER,SVC blue
